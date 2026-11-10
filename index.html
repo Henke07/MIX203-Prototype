@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="nb">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Converge – grafikkavvikling</title>
+
+  <!-- Stiler og TV 2-fonter (fontfilene ligger i fonts/) -->
+  <link rel="stylesheet" href="styles.css">
+  <script src="script.js" defer></script>
+</head>
+<body>
+
+  <!-- ================= TOPPLINJE ================= -->
+  <header class="topbar">
+    <div class="topbar__inner">
+      <span class="logo">Converge</span>
+
+      <nav class="mainnav" aria-label="Hovedmeny">
+        <button type="button" class="mainnav__btn" id="nav-start">Dagens oppgaver</button>
+        <button type="button" class="mainnav__btn" id="nav-list">Spilleliste</button>
+      </nav>
+
+      <div class="spacer"></div>
+
+      <span class="muted-dark">God morgen Norge · <span id="today"></span></span>
+
+      <div class="topbar__progress">
+        <span class="muted-dark">Fremdrift <span data-progress-text>0</span> %</span>
+        <div class="bar bar--small" aria-hidden="true">
+          <div class="bar__fill" data-progress-fill></div>
+        </div>
+      </div>
+
+      <div class="user">
+        <span class="avatar" aria-hidden="true">M</span>
+        <span>Martine</span>
+      </div>
+    </div>
+  </header>
+
+  <main class="page">
+
+    <!-- ================= SKJERM 1: VELKOMST / DAGENS OPPGAVER ================= -->
+    <section id="screen-start" class="start" aria-labelledby="start-title">
+      <div class="start__main">
+        <div>
+          <h1 id="start-title" class="h1">Hei Martine</h1>
+          <p class="lead">Dette er dine arbeidsoppgaver før og under dagens sending.</p>
+        </div>
+
+        <div class="card progress-card">
+          <div class="progress-card__head">
+            <span class="progress-card__label">Fremdrift for dagens forberedelser</span>
+            <span class="progress-card__value"><span data-progress-text>0</span> %</span>
+          </div>
+          <div class="bar" id="progressbar" role="progressbar"
+               aria-label="Fremdrift for dagens forberedelser"
+               aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+            <div class="bar__fill" data-progress-fill></div>
+          </div>
+          <span class="muted" id="progress-note"></span>
+        </div>
+
+        <!-- Oppgavekortene tegnes av script.js (se TASKS) -->
+        <div class="tasks" id="task-list"></div>
+      </div>
+
+      <aside class="start__side">
+        <button type="button" class="cta" id="cta-list">
+          <span class="cta__eyebrow">Kjøreplan · God morgen Norge</span>
+          <span class="cta__row">
+            <span class="cta__text">
+              <span class="cta__title">Gå til spillelisten</span>
+              <span class="cta__note" id="cta-note"></span>
+            </span>
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+          </span>
+        </button>
+      </aside>
+    </section>
+
+
+    <!-- ================= SKJERM 2 + 3: SPILLELISTE ================= -->
+    <section id="screen-list" class="list-screen" aria-labelledby="list-title" hidden>
+
+      <div class="list-head">
+        <div>
+          <p class="eyebrow">Spilleliste · God morgen Norge</p>
+          <h1 class="h2" id="list-title">Spilleliste</h1>
+          <p class="sub" id="list-sub" hidden></p>
+        </div>
+        <span class="muted-dark" id="fetch-info" hidden></span>
+      </div>
+
+      <div class="workspace">
+
+        <!-- VENSTRE: tom tilstand ELLER bolkmeny + elementer -->
+        <div class="workspace__left">
+
+          <!-- Skjerm 2: før kjøreplanen er hentet -->
+          <div class="empty" id="empty-state">
+            <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h6"/></svg>
+            <p class="empty__title">Ingen kjøreplan hentet</p>
+            <p class="empty__text">Hent kjøreplanen produksjonen har laget for dagens sending. Den deles automatisk opp i bolker.</p>
+            <button type="button" class="btn-primary" id="fetch-btn">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>
+              <span id="fetch-label">Hent kjøreplan</span>
+            </button>
+            <span class="muted-dark" id="fetch-status" role="status"></span>
+          </div>
+
+          <!-- Skjerm 3: bolkmeny + elementene i valgt bolk -->
+          <div class="playlist" id="playlist" hidden>
+            <nav class="bolk-menu" id="bolk-menu" aria-label="Bolker"></nav>
+
+            <section class="panel panel--elements" aria-label="Elementer i bolken">
+              <div class="panel__head">
+                <h2 class="panel__title" id="el-count"></h2>
+                <span class="hint">Dobbeltklikk på et element for å åpne det</span>
+              </div>
+              <div class="element-list" id="element-list"></div>
+            </section>
+          </div>
+        </div>
+
+        <!-- HØYRE: elementpalett, preview/rediger og «Bolk klar» -->
+        <div class="workspace__right">
+
+          <section class="panel" id="palette-panel" aria-label="Elementpalett">
+            <div class="panel__head">
+              <h2 class="panel__title">Elementer</h2>
+              <span class="hint" id="palette-hint"></span>
+            </div>
+            <div class="palette" id="palette"></div>
+            <button type="button" class="palette__new" id="new-element-btn">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg>
+              <span>Nytt element</span>
+            </button>
+            <p class="hint" id="new-element-note" role="status" hidden>Andre elementtyper er ikke definert ennå. Velg en av typene over for å legge til et element i bolken.</p>
+          </section>
+
+          <section class="panel" aria-label="Forhåndsvisning og redigering">
+            <div class="panel__head">
+              <h2 class="panel__title" id="preview-title">Forhåndsvisning</h2>
+              <div class="mode-switch" role="group" aria-label="Modus">
+                <button type="button" class="mode-switch__btn" id="mode-edit" aria-pressed="false">Rediger</button>
+                <button type="button" class="mode-switch__btn" id="mode-preview" aria-pressed="true">Preview</button>
+              </div>
+            </div>
+
+            <div class="preview-empty" id="preview-empty"></div>
+
+            <div class="preview" id="preview" hidden>
+              <div class="preview__body">
+                <form class="edit-fields" id="edit-fields" hidden></form>
+                <div class="preview__stage">
+                  <!-- 16:9-forhåndsvisning av grafikken -->
+                  <div class="stage" id="stage"></div>
+                  <p class="hint stage-note" id="stage-note"></p>
+                </div>
+              </div>
+
+              <div class="stepper">
+                <button type="button" class="round-btn" id="prev-btn" aria-label="Forrige element">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5M11 6l-6 6 6 6"/></svg>
+                </button>
+                <span class="stepper__pos" id="position"></span>
+                <button type="button" class="round-btn" id="next-btn" aria-label="Neste element">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+                </button>
+              </div>
+            </div>
+          </section>
+
+          <div class="klar-row" id="klar-row" hidden>
+            <span class="muted-dark" id="klar-note" role="status"></span>
+            <button type="button" class="btn-klar" id="klar-btn" aria-pressed="false">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12.5l4.5 4.5L15 8"/><path d="M11 16l1 1 9.5-9.5"/></svg>
+              <span id="klar-label">Bolk klar</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</body>
+</html>

@@ -1,0 +1,862 @@
+/* ==========================================================
+   Converge – stilark
+   Fargebalanse etter TV 2s grafiske profil: 60 / 30 / 10
+   ========================================================== */
+
+
+/* ----------------------------------------------------------
+   TV 2 Sans
+   - TV 2 Display: overskrifter og større ingresser
+   - TV 2 Text:    brødtekst, knapper og informasjonstekst
+   Fontfilene ligger i mappen fonts/ ved siden av index.html.
+   Bare vektene som faktisk brukes, lastes inn.
+   ---------------------------------------------------------- */
+@font-face {
+  font-family: 'TV 2 Display';
+  src: url('fonts/TV2Display-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'TV 2 Display';
+  src: url('fonts/TV2Display-SemiBold.woff2') format('woff2');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'TV 2 Display';
+  src: url('fonts/TV2Display-Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'TV 2 Text';
+  src: url('fonts/TV2Text-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'TV 2 Text';
+  src: url('fonts/TV2Text-Medium.woff2') format('woff2');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'TV 2 Text';
+  src: url('fonts/TV2Text-SemiBold.woff2') format('woff2');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'TV 2 Text';
+  src: url('fonts/TV2Text-Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+
+/* ----------------------------------------------------------
+   Variabler
+   ---------------------------------------------------------- */
+:root {
+  /* TV 2-farger */
+  --tv2-mork:   #190036;  /* 60 % – bakgrunn, fullskjermgrafikk */
+  --tv2-lys:    #FAFAFA;  /* 30 % – kort, paneler, tekst på mørk */
+  --tv2-aksent: #7100FF;  /* 10 % – det som skal fange blikket */
+
+  /* Støttetoner, avledet av hovedfargene */
+  --aksent-hover:       #5E00D6;
+  --tekst-dempet-mork:  #C3BAD3;  /* sekundærtekst på mørk bakgrunn */
+  --tekst-dempet-lys:   #5E5472;  /* sekundærtekst på lys bakgrunn */
+  --linje-mork:         #3A2758;
+  --linje-lys:          #DCD6E6;
+  --linje-sterk:        #8E83A3;
+  --flate-lys:          #F0EDF5;
+  --spor-lys:           #E6E1EE;
+  --flate-mork:         #24104A;
+  --flate-mork-2:       #210846;
+
+  /* Grafikk i preview */
+  --stage-bg:     #0F0022;
+  --stage-figur:  #2A1650;
+  --stage-bilde:  #3A2A55;
+  --stage-thumb:  #4A3A66;
+  --stage-ikon:   #D8D0E6;
+
+  --font-display: 'TV 2 Display', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-text:    'TV 2 Text', system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+  --radius-s: 8px;
+  --radius-m: 12px;
+  --radius-l: 16px;
+}
+
+
+/* ----------------------------------------------------------
+   Grunnstiler
+   ---------------------------------------------------------- */
+*, *::before, *::after { box-sizing: border-box; }
+
+[hidden] { display: none !important; }
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--tv2-mork);
+  color: var(--tv2-lys);
+  font-family: var(--font-text);
+  line-height: 1.4;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Overskrifter og ingresser bruker TV 2 Display */
+.logo,
+.h1,
+.h2,
+.lead,
+.cta__title,
+.panel__title,
+.empty__title,
+.g-lower__main,
+.g-stolper__head,
+.g-serie__title {
+  font-family: var(--font-display);
+}
+
+/* Stilistisk alternativ (ss02) – kun i titler og kun på første bokstav.
+   Gir de utsparte versalene i TV 2 Display (finnes for de fleste
+   store bokstaver, men ikke for C, I, O og Q). */
+.h1::first-letter,
+.h2::first-letter {
+  font-feature-settings: 'ss02';
+}
+
+button, input, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+button:disabled { cursor: not-allowed; }
+
+/* Tydelig fokusring som synes på både mørk og lys bakgrunn */
+:focus-visible {
+  outline: 3px solid var(--tv2-aksent);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 7px var(--tv2-lys);
+}
+
+
+/* ----------------------------------------------------------
+   Topplinje
+   ---------------------------------------------------------- */
+.topbar { border-bottom: 1px solid var(--linje-mork); }
+
+.topbar__inner {
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 12px 32px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 28px;
+}
+
+.logo { font-size: 22px; font-weight: 700; letter-spacing: -0.02em; }
+
+.mainnav { display: flex; flex-wrap: wrap; gap: 4px; }
+
+.mainnav__btn {
+  min-height: 44px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: var(--radius-s);
+  background: transparent;
+  color: var(--tv2-lys);
+  font-size: 14px;
+  font-weight: 600;
+}
+.mainnav__btn:hover { background: var(--flate-mork); }
+.mainnav__btn.is-active { background: var(--tv2-lys); color: var(--tv2-mork); }
+
+.spacer { flex: 1 1 auto; }
+
+.muted-dark { font-size: 13px; color: var(--tekst-dempet-mork); }
+.muted      { font-size: 13px; color: var(--tekst-dempet-lys); }
+
+.topbar__progress { display: flex; align-items: center; gap: 10px; }
+
+.user { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; }
+
+.avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--tv2-aksent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+}
+
+
+/* ----------------------------------------------------------
+   Fremdriftslinje
+   ---------------------------------------------------------- */
+.bar {
+  height: 12px;
+  border-radius: 999px;
+  background: var(--spor-lys);
+  overflow: hidden;
+}
+.bar--small { width: 88px; height: 8px; background: var(--linje-mork); }
+
+.bar__fill {
+  width: 0;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--tv2-aksent);
+  transition: width 0.3s ease;
+}
+
+
+/* ----------------------------------------------------------
+   Sideoppsett og typografi
+   ---------------------------------------------------------- */
+.page { max-width: 1440px; margin: 0 auto; padding: 32px; }
+
+.h1 { margin: 0; font-size: 40px; font-weight: 700; letter-spacing: -0.01em; }
+.h2 { margin: 0; font-size: 32px; font-weight: 700; letter-spacing: -0.01em; }
+.lead { margin: 8px 0 0; font-size: 18px; color: var(--tekst-dempet-mork); }
+.sub  { margin: 4px 0 0; font-size: 16px; color: var(--tekst-dempet-mork); }
+
+.eyebrow {
+  margin: 0 0 6px;
+  font-size: 13px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--tekst-dempet-mork);
+}
+
+.hint { margin: 0; font-size: 12px; color: var(--tekst-dempet-lys); }
+
+.card {
+  background: var(--tv2-lys);
+  color: var(--tv2-mork);
+  border-radius: var(--radius-m);
+}
+
+
+/* ----------------------------------------------------------
+   Skjerm 1: Dagens oppgaver
+   ---------------------------------------------------------- */
+.start {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 40px;
+  align-items: flex-start;
+  padding-top: 16px;
+}
+.start__main {
+  flex: 999 1 560px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+.start__side { flex: 1 1 360px; min-width: 0; padding-top: 4px; }
+
+.progress-card { padding: 18px 20px; display: flex; flex-direction: column; gap: 10px; }
+.progress-card__head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+}
+.progress-card__label { font-size: 15px; font-weight: 600; }
+.progress-card__value { font-size: 20px; font-weight: 700; }
+
+.tasks { display: flex; flex-wrap: wrap; gap: 16px; }
+
+.task {
+  flex: 1 1 260px;
+  min-width: 0;
+  min-height: 124px;
+  padding: 15px 9px 15px 17px;
+  border: 2px solid var(--tv2-lys);
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+.task.is-done { border-color: var(--tv2-aksent); }
+
+.task__text {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.task__title { font-size: 16px; font-weight: 600; line-height: 1.3; }
+
+/* Avkrysningsknapp (44 px treffflate, 30 px synlig ring) */
+.check {
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.check__ring {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 2px solid var(--linje-sterk);
+  color: var(--tv2-lys);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.is-done .check__ring { background: var(--tv2-aksent); border-color: var(--tv2-aksent); }
+
+.btn-outline {
+  align-self: flex-start;
+  margin-top: 4px;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid var(--tv2-mork);
+  border-radius: var(--radius-s);
+  background: transparent;
+  color: var(--tv2-mork);
+  font-size: 14px;
+  font-weight: 600;
+}
+.btn-outline:hover { background: var(--flate-lys); }
+
+/* Stor knapp til spillelisten */
+.cta {
+  width: 100%;
+  min-height: 220px;
+  padding: 28px;
+  border: 0;
+  border-radius: var(--radius-l);
+  background: var(--tv2-aksent);
+  color: var(--tv2-lys);
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 24px;
+  transition: background 0.15s;
+}
+.cta:hover { background: var(--aksent-hover); }
+
+.cta__eyebrow { font-size: 13px; letter-spacing: 0.06em; text-transform: uppercase; color: #E5D9FF; }
+.cta__row { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; width: 100%; }
+.cta__text { display: flex; flex-direction: column; gap: 8px; }
+.cta__title { font-size: 28px; font-weight: 700; letter-spacing: -0.01em; }
+.cta__note { font-size: 15px; color: #EDE6FF; }
+
+
+/* ----------------------------------------------------------
+   Skjerm 2 + 3: Spilleliste
+   ---------------------------------------------------------- */
+.list-screen { display: flex; flex-direction: column; gap: 20px; }
+
+.list-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px 24px;
+}
+
+.workspace { display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start; }
+.workspace__left  { flex: 1 1 480px; min-width: 0; }
+.workspace__right { flex: 1.25 1 560px; min-width: 0; display: flex; flex-direction: column; gap: 20px; }
+
+/* Tom tilstand */
+.empty {
+  min-height: 640px;
+  padding: 32px;
+  border: 2px dashed #5A4780;
+  border-radius: var(--radius-l);
+  background: var(--flate-mork-2);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  text-align: center;
+}
+.empty svg { color: var(--tekst-dempet-mork); }
+.empty__title { margin: 0; font-size: 18px; font-weight: 600; }
+.empty__text { margin: 0; max-width: 340px; font-size: 14px; line-height: 1.5; color: var(--tekst-dempet-mork); }
+
+.btn-primary {
+  min-height: 48px;
+  padding: 0 22px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--tv2-aksent);
+  color: var(--tv2-lys);
+  font-size: 15px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+.btn-primary:hover:not(:disabled) { background: var(--aksent-hover); }
+.btn-primary:disabled { opacity: 0.7; }
+
+/* Bolkmeny + elementliste */
+.playlist { display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start; }
+
+.bolk-menu { flex: 0 0 132px; display: flex; flex-direction: column; gap: 8px; }
+
+.bolk-btn {
+  width: 100%;
+  min-height: 52px;
+  padding: 6px 10px 6px 12px;
+  border: 2px solid #3E2A60;
+  border-radius: 10px;
+  background: var(--flate-mork);
+  color: var(--tv2-lys);
+  text-align: left;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+.bolk-btn:hover { border-color: var(--linje-sterk); }
+.bolk-btn.is-active { background: var(--tv2-lys); border-color: var(--tv2-lys); color: var(--tv2-mork); }
+
+.bolk-btn__text  { display: flex; flex-direction: column; gap: 2px; }
+.bolk-btn__label { font-size: 14px; font-weight: 600; }
+.bolk-btn__time  { font-size: 12px; color: var(--tekst-dempet-mork); }
+.bolk-btn.is-active .bolk-btn__time { color: var(--tekst-dempet-lys); }
+
+.klar-dot {
+  flex: 0 0 22px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--tv2-aksent);
+  color: var(--tv2-lys);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Paneler (lyse flater på mørk bakgrunn) */
+.panel {
+  padding: 16px;
+  border-radius: var(--radius-l);
+  background: var(--tv2-lys);
+  color: var(--tv2-mork);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  transition: opacity 0.2s;
+}
+.panel.is-disabled { opacity: 0.55; }
+.panel--elements { flex: 1 1 300px; min-width: 0; min-height: 640px; gap: 10px; }
+
+.panel__head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px 12px;
+}
+.panel__title { margin: 0; font-size: 16px; font-weight: 600; }
+
+/* Elementer i bolken */
+.element-list { display: flex; flex-direction: column; gap: 8px; }
+
+.el-group {
+  margin-top: 6px;
+  padding: 0 4px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--tv2-aksent);
+}
+.el-group::after { content: ''; flex: 1 1 auto; height: 1px; background: var(--linje-lys); }
+
+.el {
+  width: 100%;
+  min-height: 64px;
+  padding: 10px 14px 10px 10px;
+  border: 2px solid var(--flate-lys);
+  border-radius: var(--radius-m);
+  background: var(--flate-lys);
+  color: var(--tv2-mork);
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  user-select: none;  /* hindrer at teksten markeres ved dobbeltklikk */
+}
+.el:hover { border-color: var(--linje-lys); }
+.el.is-selected { background: #FFFFFF; border-color: var(--tv2-aksent); }
+
+.el__text { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.el__title,
+.el__meta { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.el__title { font-size: 15px; font-weight: 600; }
+.el__meta  { font-size: 13px; color: var(--tekst-dempet-lys); }
+
+.type-icon {
+  flex: 0 0 40px;
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--linje-lys);
+  border-radius: 10px;
+  background: #FFFFFF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.badge {
+  flex: 0 0 auto;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: var(--tv2-aksent);
+  color: var(--tv2-lys);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+/* Elementpalett */
+.palette { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+
+.palette__btn {
+  min-height: 56px;
+  padding: 8px 12px 8px 8px;
+  border: 2px solid var(--linje-lys);
+  border-radius: var(--radius-m);
+  background: var(--flate-lys);
+  color: var(--tv2-mork);
+  text-align: left;
+  font-size: 15px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.palette__btn:hover:not(:disabled) { border-color: var(--linje-sterk); }
+.palette__btn.is-recognized,
+.palette__btn.is-recognized:hover:not(:disabled) { background: #FFFFFF; border-color: var(--tv2-aksent); }
+.palette__btn .type-icon { flex-basis: 38px; width: 38px; height: 38px; }
+.palette__label { flex: 1 1 auto; min-width: 0; }
+
+.palette__new {
+  min-height: 52px;
+  padding: 8px 12px;
+  border: 2px dashed var(--linje-sterk);
+  border-radius: var(--radius-m);
+  background: transparent;
+  color: var(--tv2-mork);
+  font-size: 15px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+.palette__new:hover:not(:disabled) { background: var(--flate-lys); }
+
+/* Bryter: Rediger / Preview (stiles ut fra aria-pressed) */
+.mode-switch {
+  padding: 4px;
+  border-radius: 999px;
+  background: var(--spor-lys);
+  display: flex;
+  gap: 4px;
+}
+.mode-switch__btn {
+  min-height: 40px;
+  padding: 0 20px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--tv2-mork);
+  font-size: 14px;
+  font-weight: 600;
+}
+.mode-switch__btn[aria-pressed="true"] { background: var(--tv2-mork); color: var(--tv2-lys); }
+.mode-switch__btn:disabled { opacity: 0.5; }
+
+/* Preview-panel */
+.preview-empty {
+  aspect-ratio: 16 / 9;
+  padding: 24px;
+  border: 2px dashed var(--linje-sterk);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--tekst-dempet-lys);
+}
+
+.preview { display: flex; flex-direction: column; gap: 14px; }
+.preview__body { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start; }
+.preview__stage { flex: 2 1 320px; min-width: 0; }
+.stage-note { margin-top: 8px; }
+
+.edit-fields { flex: 1 1 200px; min-width: 0; display: flex; flex-direction: column; gap: 12px; }
+
+.field { display: flex; flex-direction: column; gap: 6px; }
+.field label { font-size: 13px; font-weight: 600; }
+.field input,
+.field textarea {
+  width: 100%;
+  border: 1px solid var(--linje-sterk);
+  border-radius: var(--radius-s);
+  background: #FFFFFF;
+  color: var(--tv2-mork);
+  font-size: 15px;
+}
+.field input    { min-height: 44px; padding: 0 12px; }
+.field textarea { padding: 10px 12px; line-height: 1.4; resize: vertical; }
+
+.stepper { display: flex; align-items: center; justify-content: center; gap: 16px; }
+.stepper__pos { min-width: 120px; text-align: center; font-size: 13px; color: var(--tekst-dempet-lys); }
+
+.round-btn {
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--linje-sterk);
+  border-radius: 50%;
+  background: #FFFFFF;
+  color: var(--tv2-mork);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.round-btn:hover:not(:disabled) { border-color: var(--tv2-mork); }
+.round-btn:disabled { opacity: 0.45; }
+
+/* Bolk klar */
+.klar-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 16px; }
+
+.btn-klar {
+  min-height: 48px;
+  padding: 0 22px;
+  border: 2px solid var(--tv2-lys);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--tv2-lys);
+  font-size: 15px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.btn-klar:hover { background: var(--flate-mork); }
+.btn-klar[aria-pressed="true"] { background: var(--tv2-aksent); border-color: var(--tv2-aksent); }
+
+
+/* ----------------------------------------------------------
+   Grafikk i preview (16:9)
+   Størrelser i cqw = prosent av preview-bredden,
+   så grafikken skalerer med panelet.
+   ---------------------------------------------------------- */
+.stage {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  container-type: inline-size;
+  border-radius: var(--radius-s);
+  background: var(--stage-bg);
+  color: var(--tv2-lys);
+  overflow: hidden;
+}
+
+/* Bildeplassholder */
+.g-placeholder {
+  position: absolute;
+  inset: 0;
+  background: var(--stage-bilde);
+  color: var(--stage-ikon);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.5cqw;
+  font-size: 2.2cqw;
+}
+.g-placeholder svg { width: 9cqw; height: 9cqw; }
+
+.g-credit {
+  position: absolute;
+  top: 3cqw;
+  right: 3cqw;
+  padding: 0.4cqw 1cqw;
+  background: rgba(25, 0, 54, 0.7);
+  font-size: 1.9cqw;
+}
+
+/* Navnesuper (også brukt av foto-konk) */
+.g-person-body,
+.g-person-head { position: absolute; left: 60%; background: var(--stage-figur); }
+.g-person-body { bottom: 0; width: 34cqw; height: 22cqw; margin-left: -17cqw; border-radius: 16cqw 16cqw 0 0; }
+.g-person-head { bottom: 20cqw; width: 15cqw; height: 15cqw; margin-left: -7.5cqw; border-radius: 50%; }
+
+.g-lower {
+  position: absolute;
+  left: 6cqw;
+  bottom: 8cqw;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+.g-lower__main {
+  padding: 1cqw 2.2cqw;
+  background: var(--tv2-lys);
+  color: var(--tv2-mork);
+  font-size: 3.6cqw;
+  font-weight: 700;
+  line-height: 1.15;
+}
+.g-lower__sub {
+  padding: 0.8cqw 2.2cqw;
+  background: rgba(25, 0, 54, 0.9);
+  font-size: 2.5cqw;
+  line-height: 1.2;
+}
+.g-lower__sub--accent { background: var(--tv2-aksent); }
+
+/* Stolper */
+.g-stolper {
+  position: absolute;
+  inset: 0;
+  padding: 7cqw 8cqw;
+  background: var(--tv2-mork);
+  display: flex;
+  flex-direction: column;
+  gap: 1.2cqw;
+}
+.g-stolper__bar { width: 8cqw; height: 0.8cqw; background: var(--tv2-aksent); }
+.g-stolper__head { margin-bottom: 1.8cqw; font-size: 4.8cqw; font-weight: 700; line-height: 1.1; }
+.g-stolper ul { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 1.6cqw; }
+.g-stolper li { display: flex; align-items: center; gap: 2cqw; font-size: 3cqw; line-height: 1.25; }
+.g-stolper li::before { content: ''; flex: 0 0 1.4cqw; height: 1.4cqw; background: var(--tv2-lys); }
+
+/* Stillbilde */
+.g-caption {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 2cqw 6cqw;
+  background: rgba(25, 0, 54, 0.88);
+  font-size: 3cqw;
+  line-height: 1.2;
+}
+
+/* Bildeserie */
+.g-serie { position: absolute; inset: 0; display: flex; flex-direction: column; background: var(--tv2-mork); }
+.g-serie__main { position: relative; flex: 1 1 auto; }
+.g-serie__title {
+  position: absolute;
+  top: 3cqw;
+  left: 3cqw;
+  padding: 0.8cqw 1.8cqw;
+  background: var(--tv2-lys);
+  color: var(--tv2-mork);
+  font-size: 2.8cqw;
+  font-weight: 700;
+}
+.g-serie__thumbs { flex: 0 0 auto; padding: 1.6cqw 3cqw; display: flex; align-items: center; gap: 1.2cqw; }
+.g-thumb { width: 9cqw; height: 5.4cqw; border: 0.4cqw solid var(--stage-thumb); background: var(--stage-thumb); }
+.g-thumb.is-current { border-color: var(--tv2-lys); }
+.g-serie__count { margin-left: auto; font-size: 2cqw; color: var(--tekst-dempet-mork); }
+
+/* Faksimile */
+.g-faks-bg {
+  position: absolute;
+  inset: 0;
+  background: var(--tv2-mork);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.g-faks {
+  width: 56cqw;
+  padding: 3cqw 3.5cqw;
+  background: var(--tv2-lys);
+  color: var(--tv2-mork);
+  transform: rotate(-1.5deg);
+  box-shadow: 0 1.5cqw 4cqw rgba(0, 0, 0, 0.45);
+  display: flex;
+  flex-direction: column;
+  gap: 1.6cqw;
+}
+.g-faks__source {
+  padding-bottom: 1cqw;
+  border-bottom: 0.3cqw solid var(--tv2-mork);
+  font-size: 2cqw;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.g-faks__head { font-family: Georgia, 'Times New Roman', serif; font-size: 4.4cqw; font-weight: 700; line-height: 1.1; }
+.g-faks__lines { display: flex; flex-direction: column; gap: 0.9cqw; }
+.g-faks__lines span { display: block; height: 0.9cqw; background: var(--linje-lys); }
+.g-faks__lines span:nth-child(2) { width: 94%; }
+.g-faks__lines span:nth-child(3) { width: 97%; }
+.g-faks__lines span:nth-child(4) { width: 60%; }
+
+/* Foto-konk */
+.g-konk-tag {
+  position: absolute;
+  top: 3cqw;
+  left: 3cqw;
+  padding: 0.8cqw 1.6cqw;
+  background: var(--tv2-aksent);
+  font-size: 2cqw;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+
+/* ----------------------------------------------------------
+   Smale skjermer
+   ---------------------------------------------------------- */
+@media (max-width: 640px) {
+  .topbar__inner,
+  .page { padding-left: 16px; padding-right: 16px; }
+
+  .h1 { font-size: 32px; }
+  .h2 { font-size: 26px; }
+
+  .palette { grid-template-columns: 1fr; }
+
+  /* Bolkmenyen legger seg vannrett og kan rulles */
+  .bolk-menu { flex-basis: 100%; flex-direction: row; overflow-x: auto; padding-bottom: 4px; }
+  .bolk-btn { width: auto; min-width: 110px; }
+
+  .empty,
+  .panel--elements { min-height: 0; }
+}
