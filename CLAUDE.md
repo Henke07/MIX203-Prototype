@@ -25,7 +25,7 @@ Ren JavaScript uten rammeverk. Hold det slik.
 - Lister (oppgaver, bolker, elementer, palett, script) tegnes med `innerHTML`, og klikk
   fanges med event delegation via `data-`-attributter: `data-id` (åpne element),
   `data-push` og `data-viz` (PUSH-menyen), `data-unviz` (VIZ-merket, fjerner PUSH),
-  `data-remove` (fjern element), `data-bolk`, `data-klar` (sjekkboksen på en bolk),
+  `data-remove` (fjern element), `data-grip` (håndtak for å flytte), `data-bolk`, `data-klar` (sjekkboksen på en bolk),
   `data-script-bolk`, `data-script-klar` (sjekkboksen på en bolk i scriptet),
   `data-goto` (grafikkpunkt i scriptet), `data-task-card` (hele oppgavekortet),
   `data-task` (avkrysningen), `data-go`,
@@ -49,15 +49,17 @@ Ren JavaScript uten rammeverk. Hold det slik.
 
 Hovedmenyen: Dagens oppgaver · Script · Spilleliste.
 
-1. **Dagens oppgaver:** hilsen, fremdriftslinje, oppgavekort med avkrysning, en
+1. **Dagens oppgaver:** hilsen etter klokkeslett (`hilsen()`: God morgen 05–08.59,
+   God dag 09–14.59, God ettermiddag 15–17.59, God kveld 18–23.59, Gå og legg deg
+   00–04.59, lokal tid, sjekkes hvert minutt), fremdriftslinje, oppgavekort med avkrysning, en
    stor knapp til spillelisten og «Dagens info» under den. Hele oppgavekortet kan
    klikkes. «Lese script» har en snarvei til Script-siden, «Gå gjennom kjøreplan» til
    spillelisten. «Dagens info» viser produsent, vaktsjef, grafikkavvikler,
    programledere og beskjeder. Før kjøreplanen er hentet er det et skjelett med en
    melding, bare grafikkavvikleren (den påloggede) vises med en gang.
-2. **Script:** bolkmeny med sjekkbokser til venstre og innholdet for valgt bolk til høyre: start,
-   slutt og varighet, programledere og gjester, manus (replikker med navn og
-   regibeskjeder), intervjuguide og tidslinje. Grafikkpunktene i tidslinjen lenker
+2. **Script:** bolkmeny med sjekkbokser til venstre og innholdet for valgt bolk til høyre:
+   manus (replikker med navn og regibeskjeder), intervjuguide og tidslinje. Start og
+   slutt står i undertittelen. Grafikkpunktene i tidslinjen lenker
    til elementet i spillelisten. Er kjøreplanen ikke hentet, hentes den først.
 3. **Spilleliste, tom:** «Hent kjøreplan» (later som det lastes i 0,9 s).
 4. **Spilleliste, arbeidsflate:** bolkmeny med sjekkbokser, VIZ-oversikt,
@@ -73,6 +75,10 @@ Hovedmenyen: Dagens oppgaver · Script · Spilleliste.
 - **Fjerne elementer:** elementer som er lagt til i etterkant, har et kryss til høyre
   på raden som fjerner dem fra bolken (og tar dem av VIZ). «Angre» legger dem tilbake
   på samme plass. Elementer fra kjøreplanen kan ikke fjernes.
+- **Dra og slipp:** elementer som er lagt til i etterkant, kan dras (håndtaket eller
+  selve raden) til en ny plass i bolken de ligger i, ikke til andre bolker. En lilla
+  strek viser hvor elementet havner. Esc eller slipp utenfor listen avbryter. Med
+  tastatur: piltast opp og ned på håndtaket. Rekkefølgen ligger i `state.bolker`.
 - **PUSH til VIZ:** hver rad er en beholder med flere knapper: én som åpner elementet,
   VIZ-merket (når elementet er pushet), PUSH-knappen og fjern-krysset (bare på nye). PUSH åpner en meny med VIZ1, VIZ2 og VIZ3 (og «Fjern» hvis
   elementet allerede ligger på en kanal). Valget gjør elementet klart, slik at
@@ -128,7 +134,12 @@ Hovedmenyen: Dagens oppgaver · Script · Spilleliste.
 
 **Grafikken i preview** skal ligne God morgen Norge slik den ser ut på TV, ikke
 verktøyet. Den har egne farger i `:root` (`--gmn-*`): myke gradienter i lys blå,
-beige og fersken, korallrød og sennepsgul som aksent, mørk hashtag-pille. Størrelser
+beige og fersken, korallrød og sennepsgul som aksent, mørk hashtag-pille.
+Supere, Stolper og Overlegg ligger over et lyst «kamerabilde» (morgenhimmel med
+åser i dis, `kamera()`), med hvite flater, varme gule faner, korall som aksent og
+marineblå tekst. Ingen brune farger. Bilder (stillbilde, bildeserie, faksimile,
+fotokonkurranse) er godkjent som de er. Ikke endre dem eller stilene de deler
+(`.g-pille`, `.g-hjorne`, `.g-tv2`, `.g-bg--*`, `.g-scene--*`). Størrelser
 er i `cqw`, slik at grafikken skalerer med panelet. Stolpene er høye og smale
 (ca. 1 : 2,6) til venstre i bildet.
 

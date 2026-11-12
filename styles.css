@@ -89,17 +89,23 @@
      ikke verktøyet rundt (der gjelder 60 / 30 / 10 over). */
   --gmn-korall:   #E3695F;  /* aksent: klokkeslett, neste innslag, Straks */
   --gmn-sennep:   #E9C23F;  /* aksent: GMN-G-en */
-  --gmn-gul:      #F4DE85;  /* toppfelt på info- og oppskriftstolper */
-  --gmn-krem:     #F5E6C6;  /* faner og kremfargede felt */
   --gmn-krem-lys: #F8EFDD;  /* felt under bildet i fotokonkurransen */
-  --gmn-beige:    #E7DCCF;  /* datofeltet i tickeren */
-  --gmn-hvit:     rgba(246, 246, 244, 0.93);  /* supere og ticker */
-  --gmn-stolpe:   #EEEDEA;  /* hoveddelen av stolpene */
   --gmn-tekst:    #1D1B1E;
-  --gmn-pille:    rgba(33, 20, 40, 0.92);     /* hashtag-pillen */
-  --gmn-marine:   #1E1C3A;  /* fotokreditering */
+  --gmn-pille:    rgba(33, 20, 40, 0.92);     /* hashtag-pillen i Bilder */
   --gmn-play:     #3437E8;  /* «TV 2 Play»-merkelappen */
-  --gmn-kamera:   #2E2725;  /* plassholder for kamerabildet */
+
+  /* Supere, Stolper og Overlegg: lys morgenhimmel i blått og fersken,
+     varm gul og korall som aksent, mørk marineblå tekst. Ingen brunt. */
+  --gmn-marine:   #1F2A44;  /* tekst og mørke flater */
+  --gmn-skifer:   #56647D;  /* sekundærtekst */
+  --gmn-hvit:     rgba(255, 255, 255, 0.95);  /* supere, stolper og ticker */
+  --gmn-is:       #EEF3F8;  /* lyse felt i stolpene */
+  --gmn-himmel:   #A9C5DF;  /* lys blå */
+  --gmn-fersken:  #F4C7A1;
+  --gmn-solgul:   #F6D77A;
+  --gmn-varm:     linear-gradient(105deg, #F7DA7C 0%, #F5C39A 100%);  /* faner og toppfelt */
+  --gmn-korall-g: linear-gradient(105deg, #E3695F 0%, #EE8C76 100%);  /* neste innslag, Straks */
+  --gmn-skygge:   0 0.5cqw 1.8cqw rgba(31, 42, 68, 0.22);
 
   --font-display: 'TV 2 Display', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --font-text:    'TV 2 Text', system-ui, -apple-system, 'Segoe UI', sans-serif;
@@ -579,42 +585,6 @@ button:disabled { cursor: not-allowed; }
 .script-layout { display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start; }
 .script-content { flex: 1 1 600px; min-width: 0; display: flex; flex-direction: column; gap: 20px; }
 
-/* Tid og medvirkende */
-.panel.script-med { flex-direction: row; flex-wrap: wrap; align-items: flex-start; gap: 16px 40px; padding: 18px 20px; }
-.script-tid { margin: 0; display: flex; gap: 28px; }
-.script-tid div { display: flex; flex-direction: column; gap: 2px; }
-.script-tid dt,
-.script-label {
-  margin: 0;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--tekst-dempet-lys);
-}
-.script-tid dd { margin: 0; font-family: var(--font-display); font-size: 26px; font-weight: 700; }
-.script-folk { display: flex; flex-direction: column; gap: 8px; }
-
-.person-liste { margin: 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 10px 20px; }
-.person { display: flex; align-items: center; gap: 10px; }
-.person__ini {
-  flex: 0 0 36px;
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  background: var(--tv2-mork);
-  color: var(--tv2-lys);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 13px;
-  font-weight: 700;
-}
-.person--pl .person__ini { background: var(--tv2-aksent); }
-.person__text { display: flex; flex-direction: column; }
-.person__text b { font-size: 15px; font-weight: 600; }
-.person__text span { font-size: 13px; color: var(--tekst-dempet-lys); }
-
 .script-cols { display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start; }
 .script-col { flex: 1.25 1 380px; min-width: 0; display: flex; flex-direction: column; gap: 20px; }
 .script-tidslinje { flex: 1 1 340px; min-width: 0; }
@@ -894,6 +864,65 @@ button:disabled { cursor: not-allowed; }
   font-size: 14px;
   color: var(--tekst-dempet-lys);
 }
+
+/* Dra og slipp: håndtak på elementer som er lagt til i etterkant */
+.element-list { position: relative; }
+.el__grip {
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
+  margin: auto 0 auto 4px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-s);
+  background: transparent;
+  color: var(--tekst-dempet-lys);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: grab;
+  touch-action: none;  /* dra med finger uten at siden ruller */
+}
+.el__grip:hover { background: var(--spor-lys); color: var(--tv2-mork); }
+.el.is-flyttbar .el__open { padding-left: 2px; cursor: grab; }
+
+/* Raden som dras, følger musen */
+.el.is-dragging {
+  z-index: 5;
+  border-color: var(--tv2-aksent);
+  background: #FFFFFF;
+  box-shadow: 0 14px 30px rgba(25, 0, 54, 0.3);
+  opacity: 0.96;
+  pointer-events: none;
+}
+.is-dragging-el,
+.is-dragging-el * { cursor: grabbing !important; user-select: none; }
+
+/* Streken som viser hvor elementet havner (over raden som dras, så den alltid synes) */
+.drop-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  z-index: 6;
+  height: 4px;
+  margin-top: -2px;
+  border-radius: 2px;
+  background: var(--tv2-aksent);
+  pointer-events: none;
+}
+.drop-line::before,
+.drop-line::after {
+  content: '';
+  position: absolute;
+  top: -5px;
+  width: 14px;
+  height: 14px;
+  border: 3px solid var(--tv2-aksent);
+  border-radius: 50%;
+  background: #FFFFFF;
+}
+.drop-line::before { left: -7px; }
+.drop-line::after { right: -7px; }
 
 /* Fjern elementet fra spillelisten */
 .el__remove {
@@ -1341,7 +1370,7 @@ button:disabled { cursor: not-allowed; }
   aspect-ratio: 16 / 9;
   container-type: inline-size;
   border-radius: var(--radius-s);
-  background: var(--gmn-kamera);
+  background: #2E2725;  /* synes bare i hjørnene. Uendret så Bilder blir helt like. */
   color: var(--gmn-tekst);
   font-family: var(--font-text);
   line-height: 1.2;
@@ -1380,16 +1409,19 @@ button:disabled { cursor: not-allowed; }
     linear-gradient(165deg, #CFDAE8 0%, #EEF2F6 50%, #DCE4EE 100%);
 }
 
-/* Kamerabilde (plassholder) bak supere og overlegg */
+/* Kamerabilde (plassholder) bak supere, stolper og overlegg:
+   morgenhimmel i lys blå og fersken med sol, store myke sirkler og åser i dis */
 .g-kamera {
   position: absolute;
   inset: 0;
+  overflow: hidden;
   background:
-    radial-gradient(ellipse 26cqw 18cqw at 16% 26%, rgba(255, 212, 150, 0.35), transparent 70%),
-    radial-gradient(ellipse 34cqw 24cqw at 88% 18%, rgba(140, 170, 190, 0.22), transparent 70%),
-    linear-gradient(180deg, transparent 74%, #5B4434 74.2%, #4A372A 100%),
-    linear-gradient(180deg, #4C423D 0%, var(--gmn-kamera) 70%);
+    radial-gradient(circle at 76% 44%, rgba(255, 244, 214, 0.95) 0 3.4cqw, rgba(255, 222, 176, 0.5) 7cqw, transparent 22cqw),
+    radial-gradient(circle at 104% 8%, rgba(255, 255, 255, 0.4) 0 24cqw, transparent 24.3cqw),
+    radial-gradient(circle at -6% 96%, rgba(255, 255, 255, 0.3) 0 30cqw, transparent 30.3cqw),
+    linear-gradient(180deg, #A9C5DF 0%, #D3E0EC 36%, #F5E3CE 60%, #F4C7A1 100%);
 }
+.g-kamera__land { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 .g-kamera__kropp,
 .g-kamera__hode { position: absolute; left: 64%; }
 .g-kamera__kropp {
@@ -1398,7 +1430,7 @@ button:disabled { cursor: not-allowed; }
   height: 20cqw;
   margin-left: -15cqw;
   border-radius: 15cqw 15cqw 0 0;
-  background: #3D3540;
+  background: linear-gradient(180deg, #5C6F8E, #4A5B78);
 }
 .g-kamera__hode {
   bottom: 19cqw;
@@ -1406,7 +1438,7 @@ button:disabled { cursor: not-allowed; }
   height: 14cqw;
   margin-left: -6cqw;
   border-radius: 50%;
-  background: #8A7366;
+  background: #7A8DAA;
 }
 
 /* Logoer (plassholdere) og hashtag-pille */
@@ -1442,6 +1474,8 @@ button:disabled { cursor: not-allowed; }
 .g-pille--nh     { right: 4cqw; bottom: 3.6cqw; }   /* nede til høyre */
 .g-pille--ticker { right: 6cqw; bottom: 8.4cqw; }   /* over tickeren */
 .g-pille--stor   { right: 6cqw; bottom: 8cqw; padding: 0.7cqw 2cqw; font-size: 2.2cqw; }
+.g-pille--ticker,
+.g-pille--stor   { background: var(--gmn-marine); box-shadow: var(--gmn-skygge); }
 
 .g-ig { width: 1.3cqw; height: 1.3cqw; flex: 0 0 auto; }
 
@@ -1451,19 +1485,31 @@ button:disabled { cursor: not-allowed; }
   left: 6cqw;
   bottom: 9cqw;
   max-width: 62cqw;
-  padding: 1.1cqw 2.4cqw 1.2cqw 1.8cqw;
-  border-radius: 0.7cqw;
+  padding: 1.1cqw 2.6cqw 1.2cqw 2.6cqw;
+  border-radius: 0.8cqw;
   background: var(--gmn-hvit);
-  box-shadow: 0 0.3cqw 1.2cqw rgba(0, 0, 0, 0.18);
+  box-shadow: var(--gmn-skygge);
+  color: var(--gmn-marine);
   display: flex;
   flex-direction: column;
   gap: 0.2cqw;
   font-size: 2.5cqw;
+  overflow: hidden;
+}
+/* Varm stripe til venstre, fra solgul til korall */
+.g-super::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 0.8cqw;
+  background: linear-gradient(180deg, var(--gmn-solgul), var(--gmn-korall));
 }
 .g-super__navn   { font-weight: 700; }
-.g-super__tittel { font-weight: 400; }
+.g-super__tittel { font-weight: 400; color: var(--gmn-skifer); }
 
-/* Infosuper: kremfarget fane over en bredere hvit boks */
+/* Infosuper: varm gul fane over en bredere hvit boks */
 .g-infosuper {
   position: absolute;
   left: 6cqw;
@@ -1477,14 +1523,17 @@ button:disabled { cursor: not-allowed; }
   margin-left: 1.6cqw;
   padding: 0.6cqw 1.6cqw 0.5cqw;
   border-radius: 0.6cqw 0.6cqw 0 0;
-  background: var(--gmn-krem);
+  background: var(--gmn-varm);
+  color: var(--gmn-marine);
   font-size: 2.3cqw;
+  font-weight: 600;
 }
 .g-infosuper__tekst {
   padding: 1cqw 1.8cqw 1.1cqw;
-  border-radius: 0.6cqw;
+  border-radius: 0.8cqw;
   background: var(--gmn-hvit);
-  box-shadow: 0 0.3cqw 1.2cqw rgba(0, 0, 0, 0.18);
+  box-shadow: var(--gmn-skygge);
+  color: var(--gmn-marine);
   font-size: 2.2cqw;
   line-height: 1.3;
   white-space: pre-line;
@@ -1497,16 +1546,20 @@ button:disabled { cursor: not-allowed; }
   right: 3.5cqw;
   bottom: 4.2cqw;
   height: 2.7cqw;
+  border-radius: 0.5cqw;
+  overflow: hidden;
+  box-shadow: var(--gmn-skygge);
+  color: var(--gmn-marine);
   display: flex;
   font-size: 1.45cqw;
   line-height: 2.7cqw;
   white-space: nowrap;
 }
-.g-ticker__dato { flex: 0 0 17cqw; background: var(--gmn-beige); text-align: center; }
+.g-ticker__dato { flex: 0 0 17cqw; background: var(--gmn-varm); font-weight: 600; text-align: center; }
 .g-ticker__klokke {
   flex: 0 0 auto;
   padding: 0 1.4cqw;
-  background: var(--gmn-korall);
+  background: var(--gmn-korall-g);
   color: #FFF6F1;
   display: flex;
   align-items: center;
@@ -1514,7 +1567,7 @@ button:disabled { cursor: not-allowed; }
 }
 .g-ticker__strek { width: 0.15cqw; height: 1.6cqw; background: currentColor; }
 .g-ticker .g-ig  { width: 1.6cqw; height: 1.6cqw; }
-.g-ticker__tekst { flex: 1 1 auto; min-width: 0; overflow: hidden; background: rgba(247, 247, 245, 0.96); }
+.g-ticker__tekst { flex: 1 1 auto; min-width: 0; overflow: hidden; background: var(--gmn-hvit); }
 .g-ticker__rull {
   display: inline-block;
   padding-left: 100%;
@@ -1541,29 +1594,42 @@ button:disabled { cursor: not-allowed; }
   top: 3cqw;
   width: 19cqw;
   height: 50cqw;
-  background: var(--gmn-stolpe);
-  box-shadow: 0 0.5cqw 2cqw rgba(0, 0, 0, 0.3);
+  border-radius: 0.8cqw;
+  background: linear-gradient(180deg, #FFFFFF 0%, var(--gmn-is) 100%);
+  box-shadow: 0 0.6cqw 2.4cqw rgba(31, 42, 68, 0.28);
+  color: var(--gmn-marine);
   display: flex;
   flex-direction: column;
 }
 .g-stolpe__topp {
   flex: 0 0 auto;
   padding: 1.6cqw 1.4cqw 1.4cqw;
-  background: var(--gmn-gul);
+  border-radius: 0.8cqw 0.8cqw 0 0;
+  background: var(--gmn-varm);
+  font-weight: 600;
   display: flex;
   flex-direction: column;
   gap: 0.3cqw;
   font-size: 1.6cqw;
   line-height: 1.15;
 }
-.g-stolpe__under { font-size: 1.2cqw; }
+.g-stolpe__under { font-size: 1.2cqw; font-weight: 400; }
 
 /* Infostolpe */
 .g-info { padding: 4.5cqw 1.4cqw 1.4cqw; display: flex; flex-direction: column; gap: 0.9cqw; }
 .g-stolpe--hoyre .g-info { padding-right: 2.6cqw; }
 .g-info__tittel { font-size: 1.75cqw; font-weight: 700; line-height: 1.15; }
-.g-info__tekst  { font-size: 1.3cqw; line-height: 1.25; white-space: pre-line; }
-.g-info__pris   { margin-top: 0.6cqw; font-size: 1.3cqw; font-weight: 700; }
+.g-info__tekst  { font-size: 1.3cqw; line-height: 1.25; white-space: pre-line; color: var(--gmn-skifer); }
+.g-info__pris {
+  align-self: flex-start;
+  margin-top: 0.6cqw;
+  padding: 0.3cqw 0.8cqw;
+  border-radius: 999px;
+  background: var(--gmn-korall-g);
+  color: #FFFFFF;
+  font-size: 1.3cqw;
+  font-weight: 700;
+}
 .g-info__produkt { position: absolute; right: -2.6cqw; bottom: 0; height: 25cqw; }
 .g-info__produkt svg { display: block; width: auto; height: 100%; }
 .g-stolpe--nederst .g-info__produkt { right: auto; left: 50%; bottom: -3cqw; height: 17cqw; transform: translateX(-50%); }
@@ -1572,10 +1638,13 @@ button:disabled { cursor: not-allowed; }
 .g-stolpe--oppskrift .g-stolpe__topp { font-size: 1.75cqw; }
 .g-oppskrift__bilde { position: relative; flex: 1 1 auto; min-height: 0; }
 .g-oppskrift__bilde .g-scene { position: absolute; inset: 0; }
+/* Lys bakgrunn bak tallerkenene i stedet for brunt trebord (bare i stolpene) */
+.g-stolpe .g-scene--mat { background: linear-gradient(140deg, #F8E7D5 0%, #E6EEF6 100%); }
 .g-oppskrift__bunn {
   flex: 0 0 auto;
   padding: 1.2cqw 1.2cqw 1.4cqw;
-  background: #F4F0E6;
+  border-radius: 0 0 0.8cqw 0.8cqw;
+  background: #FFFFFF;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1587,7 +1656,7 @@ button:disabled { cursor: not-allowed; }
 .g-qr { display: block; width: 9cqw; height: 9cqw; }
 
 /* Sendestolpe («Dagens sending») */
-.g-stolpe--sending .g-stolpe__topp { background: var(--gmn-krem); }
+.g-stolpe--sending .g-stolpe__topp { background: linear-gradient(105deg, #F7DA7C 0%, #F2B9A0 100%); }
 .g-sending {
   flex: 1 1 auto;
   min-height: 0;
@@ -1602,14 +1671,17 @@ button:disabled { cursor: not-allowed; }
   flex: 1 1 0;
   min-height: 0;
   padding: 0.6cqw 0.8cqw;
-  background: #F7F3EA;
+  background: #FFFFFF;
   display: flex;
   align-items: center;
   gap: 0.8cqw;
 }
-.g-sending__rad.is-neste { background: var(--gmn-korall); color: #FFFFFF; }
+.g-sending__rad:last-child { border-radius: 0 0 0.8cqw 0.8cqw; }
+.g-sending__rad.is-neste { background: var(--gmn-korall-g); color: #FFFFFF; }
 .g-sending__venstre { flex: 0 0 10.4cqw; min-width: 0; display: flex; flex-direction: column; gap: 0.3cqw; }
-.g-sending__bilde { display: block; height: 6.2cqw; border-radius: 0.3cqw; overflow: hidden; }
+.g-sending__bilde { display: block; height: 6.2cqw; border-radius: 0.4cqw; overflow: hidden; }
+/* Lys himmel bak portrettene og maten i sendestolpen (i stedet for brunt) */
+.g-sending__bilde .g-scene--portrett { background: linear-gradient(160deg, #BCD2E7 0%, #F3D9C2 100%); }
 .g-sending__tittel { font-size: 0.95cqw; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .g-sending__tid { flex: 1 1 auto; display: flex; flex-direction: column; align-items: center; font-size: 1.15cqw; }
 .g-sending__tid b { font-size: 1.5cqw; }
@@ -1736,13 +1808,26 @@ button:disabled { cursor: not-allowed; }
   position: absolute;
   left: 5cqw;
   bottom: 6cqw;
-  padding: 0.7cqw 1.4cqw;
-  border-radius: 0.6cqw;
-  background: var(--gmn-marine);
-  color: #FFFFFF;
+  padding: 0.7cqw 1.6cqw 0.7cqw 1.4cqw;
+  border-radius: 999px;
+  background: var(--gmn-hvit);
+  box-shadow: var(--gmn-skygge);
+  color: var(--gmn-skifer);
+  display: flex;
+  align-items: center;
+  gap: 0.4cqw;
   font-size: 1.8cqw;
 }
-.g-fotokred b { margin-left: 0.3cqw; font-weight: 700; }
+/* Liten solgul prikk foran teksten */
+.g-fotokred::before {
+  content: '';
+  width: 1cqw;
+  height: 1cqw;
+  margin-right: 0.4cqw;
+  border-radius: 50%;
+  background: var(--gmn-solgul);
+}
+.g-fotokred b { font-weight: 700; color: var(--gmn-marine); }
 
 /* Straks-plakat */
 .g-straks {
@@ -1753,19 +1838,20 @@ button:disabled { cursor: not-allowed; }
   flex-direction: column;
   align-items: flex-start;
 }
-.g-straks__fane { padding: 0.35cqw 1.1cqw; background: #F3F1EC; font-size: 1.7cqw; }
-.g-straks__rad { display: flex; }
+.g-straks__fane { padding: 0.35cqw 1.1cqw; border-radius: 0.5cqw 0.5cqw 0 0; background: var(--gmn-varm); color: var(--gmn-marine); font-size: 1.7cqw; font-weight: 600; }
+.g-straks__rad { display: flex; border-radius: 0 0.8cqw 0.8cqw 0.8cqw; overflow: hidden; box-shadow: var(--gmn-skygge); }
 .g-straks__logo {
   width: 8.5cqw;
   height: 8.5cqw;
   padding: 1.3cqw;
-  background: var(--gmn-korall);
-  color: #F7D774;
+  background: var(--gmn-korall-g);
+  color: var(--gmn-solgul);
 }
 .g-straks__tittel {
   height: 8.5cqw;
   padding: 0 3cqw 0 2.4cqw;
-  background: #F7F6F2;
+  background: var(--gmn-hvit);
+  color: var(--gmn-marine);
   display: flex;
   align-items: center;
   font-size: 3.8cqw;
@@ -1774,8 +1860,9 @@ button:disabled { cursor: not-allowed; }
 }
 .g-straks__kanaler {
   margin-top: 0.6cqw;
-  padding: 0.3cqw 0.8cqw;
-  background: rgba(20, 15, 20, 0.55);
+  padding: 0.3cqw 0.9cqw;
+  border-radius: 0.4cqw;
+  background: rgba(31, 42, 68, 0.82);
   color: #FFFFFF;
   font-size: 1.7cqw;
 }

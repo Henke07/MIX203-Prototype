@@ -178,6 +178,7 @@ const CHECK_PATH = '<path d="M5 12.5l4.5 4.5L19 7.5"/>';
 const PLUS_PATH = '<path d="M12 5v14M5 12h14"/>';
 const CROSS_PATH = '<path d="M6 6l12 12M18 6 6 18"/>';
 const WARN_PATH = '<path d="M12 3 2 20h20z"/><path d="M12 10v4M12 17h.01"/>';
+const GRIP_PATH = '<path d="M9 6h.01M15 6h.01M9 12h.01M15 12h.01M9 18h.01M15 18h.01"/>';
 
 // Oppgavene på startsiden. `auto` betyr at oppgaven ikke kan hukes av for hånd.
 // Den blir ferdig av seg selv når alle bolkene er huket av:
@@ -718,16 +719,6 @@ function stedTekst(el) {
   return [el.sted, el.fylke].filter(Boolean).join(', ');
 }
 
-function minutter(fra, til) {
-  const m = (t) => { const [h, min] = t.split(':').map(Number); return h * 60 + min; };
-  return m(til) - m(fra);
-}
-
-function initialer(navn) {
-  const deler = navn.split(/\s+/).filter(Boolean);
-  return (deler[0][0] + (deler.length > 1 ? deler[deler.length - 1][0] : '')).toUpperCase();
-}
-
 // Finner et element i hele kjøreplanen
 function findElement(id) {
   for (let i = 0; i < state.bolker.length; i++) {
@@ -790,7 +781,7 @@ function elLabel(el) {
 // Når innerHTML byttes ut, mister knappen fokus. Disse to
 // funksjonene husker hvilken knapp som hadde fokus og gir det tilbake,
 // slik at tastaturbrukere ikke mister plassen sin.
-const FOCUS_ATTRS = ['data-id', 'data-push', 'data-viz', 'data-unviz', 'data-remove', 'data-bolk', 'data-klar',
+const FOCUS_ATTRS = ['data-id', 'data-push', 'data-viz', 'data-unviz', 'data-remove', 'data-grip', 'data-bolk', 'data-klar',
   'data-script-bolk', 'data-script-klar', 'data-goto', 'data-task', 'data-go', 'data-add', 'data-serie'];
 function rememberFocus() {
   const active = document.activeElement;
@@ -931,9 +922,20 @@ const GMN_G = '<svg class="g-logo" viewBox="0 0 100 100" aria-hidden="true" focu
 const TV2_LOGO = '<span class="g-tv2" aria-hidden="true"><span class="g-tv2__2">2</span><span class="g-tv2__sub">Direkte</span></span>';
 const IG_ICON = '<svg class="g-ig" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true" focusable="false"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.3" cy="6.7" r="1.2" fill="currentColor" stroke="none"/></svg>';
 
-// Kamerabilde (plassholder) bak supere og overlegg
+// Kamerabilde (plassholder) bak supere, stolper og overlegg: morgenhimmel
+// med åser i dis, som i God morgen Norge. TV 2-logoen står oppe til høyre.
 function kamera(person = true) {
-  return `<div class="g-kamera" aria-hidden="true">${person ? '<span class="g-kamera__kropp"></span><span class="g-kamera__hode"></span>' : ''}</div>`;
+  return `
+    <div class="g-kamera" aria-hidden="true">
+      <svg class="g-kamera__land" viewBox="0 0 160 90" preserveAspectRatio="xMidYMax slice" focusable="false">
+        <path d="M0 58C18 50 30 54 46 48S78 38 98 45 136 40 160 47V90H0z" fill="#C3D3E3"/>
+        <path d="M0 66C22 58 44 64 66 58S114 54 160 62V90H0z" fill="#A3B9CF"/>
+        <path d="M0 72C30 68 58 74 92 69S138 68 160 72V90H0z" fill="#EEF2F6" opacity=".85"/>
+        <path d="M0 80C34 76 70 82 108 78S146 78 160 80V90H0z" fill="#8EA6BE"/>
+      </svg>
+      ${person ? '<span class="g-kamera__kropp"></span><span class="g-kamera__hode"></span>' : ''}
+    </div>
+    ${TV2_LOGO}`;
 }
 function pille(text, cls) {
   return `<span class="g-pille ${cls}">${text}</span>`;
@@ -1145,6 +1147,29 @@ function setNavActive(btn, active) {
 }
 
 /* ---- Skjerm 1 ---- */
+
+// Hilsenen på startsiden følger klokken (lokal tid)
+function hilsen(date = new Date()) {
+  const t = date.getHours();
+  if (t >= 5 && t < 9) return 'God morgen';
+  if (t >= 9 && t < 15) return 'God dag';
+  if (t >= 15 && t < 18) return 'God ettermiddag';
+  if (t >= 18) return 'God kveld';
+  return 'Gå og legg deg';  // 00.00–04.59
+}
+
+function oppdaterHilsen() {
+  const tekst = `${hilsen()} ${BRUKER}`;
+  if ($('start-title').textContent !== tekst) $('start-title').textContent = tekst;
+}
+
+// Sjekker hilsenen på hvert helt minutt, så den skifter selv om siden står åpen
+function startHilsenKlokke() {
+  oppdaterHilsen();
+  const na = new Date();
+  setTimeout(startHilsenKlokke, (60 - na.getSeconds()) * 1000 - na.getMilliseconds() + 20);
+}
+
 function renderStart() {
   $('screen-start').hidden = state.screen !== 'start';
 
@@ -1269,7 +1294,6 @@ function renderScript() {
   })).join('');
 
   $('script-content').innerHTML = `
-    ${scriptMed(bolk, slutt, script)}
     <div class="script-cols">
       <div class="script-col">
         ${scriptManus(script)}
@@ -1277,35 +1301,6 @@ function renderScript() {
       </div>
       ${scriptTidslinje(i, script)}
     </div>`;
-}
-
-// Klokkeslett og hvem som er med
-function scriptMed(bolk, slutt, script) {
-  const person = ([navn, rolle], pl) => `
-    <li class="person${pl ? ' person--pl' : ''}">
-      <span class="person__ini" aria-hidden="true">${esc(initialer(navn))}</span>
-      <span class="person__text"><b>${esc(navn)}</b><span>${esc(rolle)}</span></span>
-    </li>`;
-  const gjester = script.gjester.length
-    ? script.gjester.map((g) => person(g, false)).join('')
-    : '<li class="muted">Ingen gjester i denne bolken</li>';
-
-  return `
-    <section class="panel script-med" aria-label="Tid og medvirkende">
-      <dl class="script-tid">
-        <div><dt>Start</dt><dd>${bolk.time}</dd></div>
-        <div><dt>Slutt</dt><dd>${slutt}</dd></div>
-        <div><dt>Varighet</dt><dd>${minutter(bolk.time, slutt)} min</dd></div>
-      </dl>
-      <div class="script-folk">
-        <h2 class="script-label">Programledere</h2>
-        <ul class="person-liste">${PROGRAMLEDERE.map((p) => person(p, true)).join('')}</ul>
-      </div>
-      <div class="script-folk">
-        <h2 class="script-label">Gjester</h2>
-        <ul class="person-liste">${gjester}</ul>
-      </div>
-    </section>`;
 }
 
 // Replikkene med navnet på den som snakker. Regibeskjeder vises for seg.
@@ -1438,8 +1433,13 @@ function renderElementList() {
     const viz = vizFor(el.id);
     const menuOpen = state.pushMenu === el.id;
     const label = esc(elLabel(el));
+    // Elementer som er lagt til i etterkant, kan dras til en ny plass i bolken
+    const flyttbar = !!el.isNew;
     return `
-      <div class="el${isSelected ? ' is-selected' : ''}">
+      <div class="el${isSelected ? ' is-selected' : ''}${flyttbar ? ' is-flyttbar' : ''}" data-row="${el.id}">
+        ${flyttbar ? `
+        <button type="button" class="el__grip" data-grip="${el.id}" title="Dra for å flytte"
+          aria-label="Flytt ${label}. Bruk piltast opp og ned.">${svgIcon(GRIP_PATH, 20, 3)}</button>` : ''}
         <button type="button" class="el__open" data-id="${el.id}"${isSelected ? ' aria-current="true"' : ''}>
           <span class="type-icon">${svgIcon(ICON_PATHS[el.type])}</span>
           <span class="el__text">
@@ -1915,6 +1915,101 @@ function removeElement(id) {
   (target || $('undo-btn')).focus();
 }
 
+// Flytter et element til en ny plass i bolken (indeks blant de andre elementene)
+function moveElement(id, to) {
+  const els = activeBolk().els;
+  const from = els.findIndex((e) => e.id === id);
+  if (from === -1) return;
+  const [el] = els.splice(from, 1);
+  const index = clamp(to, 0, els.length);
+  els.splice(index, 0, el);
+  setMsg(index === from
+    ? `${elLabel(el)} ble liggende på samme plass.`
+    : `${elLabel(el)} er flyttet til plass ${index + 1} av ${els.length} i ${bolkNavn(state.activeBolk)}.`);
+  render();
+}
+
+/* ---- Dra og slipp i elementlisten ----
+   Bare elementer som er lagt til i etterkant, kan dras, og bare innenfor
+   bolken de ligger i. Raden følger musen, og en lilla strek viser hvor den
+   havner. Med tastatur: piltast opp og ned på håndtaket. */
+const drag = { start: null, active: false, index: 0, line: null, hindreKlikk: false };
+
+function dragDown(e) {
+  if (e.button !== 0 || state.pushMenu) return;
+  const handle = e.target.closest('[data-grip]') || e.target.closest('.is-flyttbar .el__open');
+  if (!handle) return;
+  const row = handle.closest('[data-row]');
+  if (handle.hasAttribute('data-grip')) e.preventDefault();
+  drag.start = { id: row.dataset.row, row, x: e.clientX, y: e.clientY, scrollY: window.scrollY };
+}
+
+function dragMove(e) {
+  const st = drag.start;
+  if (!st) return;
+  if (!drag.active) {
+    if (Math.hypot(e.clientX - st.x, e.clientY - st.y) < 6) return;
+    drag.active = true;
+    st.row.classList.add('is-dragging');
+    $('element-list').classList.add('is-sorting');
+    document.body.classList.add('is-dragging-el');
+    drag.line = document.createElement('div');
+    drag.line.className = 'drop-line';
+    drag.line.setAttribute('aria-hidden', 'true');
+    $('element-list').appendChild(drag.line);
+  }
+  e.preventDefault();
+
+  // Rull siden når man drar nær kanten
+  if (e.clientY < 60) window.scrollBy(0, -12);
+  else if (e.clientY > window.innerHeight - 60) window.scrollBy(0, 12);
+
+  st.row.style.transform = `translateY(${e.clientY - st.y + (window.scrollY - st.scrollY)}px)`;
+  placeDropLine(e.clientX, e.clientY);
+}
+
+// Finner plassen under musen og flytter streken dit. Utenfor elementlisten
+// vises ingen strek, og slipper man der, blir elementet liggende.
+function placeDropLine(x, y) {
+  const list = $('element-list');
+  const panel = list.closest('.panel').getBoundingClientRect();
+  const inni = x >= panel.left && x <= panel.right && y >= panel.top - 40 && y <= panel.bottom + 40;
+  drag.line.hidden = !inni;
+  if (!inni) {
+    drag.index = null;
+    return;
+  }
+  const others = [...list.querySelectorAll('[data-row]')].filter((r) => r !== drag.start.row);
+  let index = others.findIndex((r) => {
+    const box = r.getBoundingClientRect();
+    return y < box.top + box.height / 2;
+  });
+  if (index === -1) index = others.length;
+  drag.index = index;
+
+  const top = list.getBoundingClientRect().top;
+  let lineY = 0;
+  if (others.length && index < others.length) lineY = others[index].getBoundingClientRect().top - top - 4;
+  else if (others.length) lineY = others[others.length - 1].getBoundingClientRect().bottom - top + 4;
+  drag.line.style.top = `${lineY}px`;
+}
+
+function dragEnd(cancel) {
+  const st = drag.start;
+  drag.start = null;
+  if (!st || !drag.active) return;
+  drag.active = false;
+  document.body.classList.remove('is-dragging-el');
+  // Klikket som kommer etter at man slipper, skal ikke åpne elementet
+  drag.hindreKlikk = true;
+  setTimeout(() => { drag.hindreKlikk = false; }, 0);
+  if (cancel || drag.index === null) {
+    render();
+    return;
+  }
+  moveElement(st.id, drag.index);
+}
+
 // Legger det sist fjernede elementet tilbake på samme plass
 function undoRemove() {
   const u = state.undo;
@@ -2128,7 +2223,14 @@ function bindEvents() {
     if (btn) pickBolk(Number(btn.dataset.bolk));
   });
 
+  // Dra og slipp (se dragDown og dragMove)
+  $('element-list').addEventListener('pointerdown', dragDown);
+  document.addEventListener('pointermove', dragMove);
+  document.addEventListener('pointerup', () => dragEnd(false));
+  document.addEventListener('pointercancel', () => dragEnd(true));
+
   $('element-list').addEventListener('click', (e) => {
+    if (drag.hindreKlikk) return;
     // PUSH-knappen åpner og lukker menyen, men åpner ikke elementet
     const push = e.target.closest('[data-push]');
     if (push) {
@@ -2159,6 +2261,15 @@ function bindEvents() {
 
   // Tastatur i PUSH-menyen: piltaster, Home/End og Tab
   $('element-list').addEventListener('keydown', (e) => {
+    // Piltast opp og ned på håndtaket flytter elementet én plass
+    const grip = e.target.closest('[data-grip]');
+    if (grip && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
+      e.preventDefault();
+      const id = grip.dataset.grip;
+      const from = activeBolk().els.findIndex((el) => el.id === id);
+      moveElement(id, from + (e.key === 'ArrowUp' ? -1 : 1));
+      return;
+    }
     const push = e.target.closest('[data-push]');
     if (push && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
       e.preventDefault();
@@ -2179,6 +2290,11 @@ function bindEvents() {
 
   // Esc eller klikk utenfor lukker PUSH-menyen
   document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && drag.active) {
+      e.preventDefault();
+      dragEnd(true);
+      return;
+    }
     if (e.key === 'Escape' && state.pushMenu) {
       e.preventDefault();
       closePushMenu(true);
@@ -2251,6 +2367,8 @@ function init() {
   });
   bindEvents();
   render();
+  startHilsenKlokke();
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) oppdaterHilsen(); });
   showIntro();
 }
 
