@@ -36,7 +36,7 @@
 
       <div class="user">
         <span class="avatar" aria-hidden="true">M</span>
-        <span>Martine</span>
+        <span>Maia</span>
       </div>
     </div>
   </header>
@@ -47,7 +47,7 @@
     <section id="screen-start" class="start" aria-labelledby="start-title">
       <div class="start__main">
         <div>
-          <h1 id="start-title" class="h1">Hei Martine</h1>
+          <h1 id="start-title" class="h1">Hei Maia</h1>
           <p class="lead">Dette er dine arbeidsoppgaver før og under dagens sending.</p>
         </div>
 
@@ -66,6 +66,7 @@
 
         <!-- Oppgavekortene tegnes av script.js (se TASKS) -->
         <div class="tasks" id="task-list"></div>
+        <p class="sr-only" id="start-status" role="status"></p>
       </div>
 
       <aside class="start__side">
@@ -79,6 +80,12 @@
             <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
           </span>
         </button>
+
+        <!-- Generell info for dagen (tegnes av script.js). Skjelett til kjøreplanen er hentet. -->
+        <section class="card info-card" aria-labelledby="info-title">
+          <h2 class="info-card__title" id="info-title">Dagens info</h2>
+          <div id="dagens-info"></div>
+        </section>
       </aside>
     </section>
 
@@ -139,19 +146,24 @@
             <section class="panel panel--elements" aria-label="Elementer i bolken">
               <div class="panel__head">
                 <h2 class="panel__title" id="el-count"></h2>
-                <span class="hint">Dobbeltklikk på et element for å åpne det</span>
+                <span class="hint">Klikk på et element for å åpne det</span>
               </div>
 
               <!-- Hva som ligger klart på hver VIZ-kanal (tegnes av script.js) -->
               <ul class="viz-strip" id="viz-strip" aria-label="Klart på VIZ"></ul>
-              <p class="viz-msg" id="viz-msg" role="status"></p>
+
+              <!-- Siste melding (PUSH, fjernet, lagt til), med «Angre» når et element er fjernet -->
+              <div class="list-msg">
+                <p class="list-msg__text" id="list-msg" role="status"></p>
+                <button type="button" class="btn-link" id="undo-btn" hidden>Angre</button>
+              </div>
 
               <div class="element-list" id="element-list"></div>
             </section>
           </div>
         </div>
 
-        <!-- HØYRE: elementpalett, preview/rediger og «Bolk klar» -->
+        <!-- HØYRE: elementpalett og preview/rediger -->
         <div class="workspace__right">
 
           <section class="panel" id="palette-panel" aria-label="Elementpalett">
@@ -160,11 +172,6 @@
               <span class="hint" id="palette-hint"></span>
             </div>
             <div class="palette" id="palette"></div>
-            <button type="button" class="palette__new" id="new-element-btn">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg>
-              <span>Nytt element</span>
-            </button>
-            <p class="hint" id="new-element-note" role="status" hidden>Andre elementtyper er ikke definert ennå. Velg en av typene over for å legge til et element i bolken.</p>
           </section>
 
           <section class="panel" aria-label="Forhåndsvisning og redigering">
@@ -206,7 +213,7 @@
                 </div>
               </div>
 
-              <div class="stepper">
+              <div class="stepper" id="stepper">
                 <button type="button" class="round-btn" id="prev-btn" aria-label="Forrige element">
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5M11 6l-6 6 6 6"/></svg>
                 </button>
@@ -215,20 +222,50 @@
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
                 </button>
               </div>
+
+              <!-- Nytt element fra paletten: ligger bare her til det legges inn i spillelisten -->
+              <div class="draft-bar" id="draft-bar" hidden>
+                <p class="draft-bar__text" id="draft-note"></p>
+                <div class="draft-bar__actions">
+                  <button type="button" class="btn-outline" id="draft-cancel">Avbryt</button>
+                  <button type="button" class="btn-primary" id="draft-add">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+                    Legg element til spilleliste
+                  </button>
+                </div>
+              </div>
             </div>
           </section>
 
-          <div class="klar-row" id="klar-row" hidden>
-            <span class="muted-dark" id="klar-note" role="status"></span>
-            <button type="button" class="btn-klar" id="klar-btn" aria-pressed="false">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12.5l4.5 4.5L15 8"/><path d="M11 16l1 1 9.5-9.5"/></svg>
-              <span id="klar-label">Bolk klar</span>
-            </button>
-          </div>
         </div>
       </div>
     </section>
 
   </main>
+
+  <!-- Opplæring første gang. Vises ikke igjen etter at den er lukket. -->
+  <dialog class="intro" id="intro" aria-labelledby="intro-title">
+    <button type="button" class="intro__close" id="intro-close" aria-label="Lukk opplæringen">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
+    </button>
+    <p class="intro__eyebrow">Første gang her?</p>
+    <h2 class="h2 intro__title" id="intro-title">Velkommen til Converge</h2>
+    <p class="intro__lead">Slik finner du frem. Du bytter side i menyen øverst.</p>
+    <ol class="intro__steps">
+      <li>
+        <b>Dagens oppgaver</b>
+        <span>Her ser du hva som skal gjøres før sending, og hvor langt du har kommet. Huk av oppgavene etter hvert.</span>
+      </li>
+      <li>
+        <b>Script</b>
+        <span>Les manus, intervjuguide og tidslinje for hver bolk. Grafikkpunktene i tidslinjen tar deg rett til elementet.</span>
+      </li>
+      <li>
+        <b>Spilleliste</b>
+        <span>Hent kjøreplanen og klikk på et element for å se det i preview. Bruk PUSH for å gjøre det klart på VIZ, og huk av bolkene når de er klare.</span>
+      </li>
+    </ol>
+    <button type="button" class="btn-primary intro__ok" id="intro-ok" autofocus>Kom i gang</button>
+  </dialog>
 </body>
 </html>

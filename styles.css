@@ -91,7 +91,7 @@
   --gmn-sennep:   #E9C23F;  /* aksent: GMN-G-en */
   --gmn-gul:      #F4DE85;  /* toppfelt på info- og oppskriftstolper */
   --gmn-krem:     #F5E6C6;  /* faner og kremfargede felt */
-  --gmn-krem-lys: #F8EFDD;  /* felt under fotokonk-bildet */
+  --gmn-krem-lys: #F8EFDD;  /* felt under bildet i fotokonkurransen */
   --gmn-beige:    #E7DCCF;  /* datofeltet i tickeren */
   --gmn-hvit:     rgba(246, 246, 244, 0.93);  /* supere og ticker */
   --gmn-stolpe:   #EEEDEA;  /* hoveddelen av stolpene */
@@ -351,6 +351,51 @@ button:disabled { cursor: not-allowed; }
 }
 .is-done .check__ring { background: var(--tv2-aksent); border-color: var(--tv2-aksent); }
 
+/* Hele oppgavekortet kan klikkes */
+.task { cursor: pointer; }
+.task:not(.is-done):not(.task--auto):hover { border-color: var(--linje-sterk); }
+.task--auto { cursor: default; }
+
+/* «Lese script» og «Gå gjennom kjøreplan»: sirkel uten kantlinje som fylles
+   etter hvert som bolkene hukes av (--andel settes fra script.js) */
+.task__fill {
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.task__fill-ring {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: conic-gradient(var(--tv2-aksent) var(--andel, 0%), var(--spor-lys) 0);
+  color: var(--tv2-lys);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Oppgave som ikke kan hukes av ennå: sirkelen (eller meldingen) rister */
+.is-shake { animation: rist 0.45s ease-in-out; }
+@keyframes rist {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-5px); }
+  40% { transform: translateX(5px); }
+  60% { transform: translateX(-4px); }
+  80% { transform: translateX(3px); }
+}
+.task__warn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--tv2-mork);
+}
+.task__warn svg { flex: 0 0 auto; }
+
 .btn-outline {
   align-self: flex-start;
   margin-top: 4px;
@@ -388,6 +433,143 @@ button:disabled { cursor: not-allowed; }
 .cta__text { display: flex; flex-direction: column; gap: 8px; }
 .cta__title { font-size: 28px; font-weight: 700; letter-spacing: -0.01em; }
 .cta__note { font-size: 15px; color: #EDE6FF; }
+
+/* Dagens info under knappen til spillelisten */
+.info-card { margin-top: 20px; padding: 20px; display: flex; flex-direction: column; gap: 14px; }
+.info-card__title { margin: 0; font-family: var(--font-display); font-size: 18px; font-weight: 700; }
+#dagens-info { display: flex; flex-direction: column; gap: 14px; }
+.info-card__msg {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: var(--radius-s);
+  background: var(--flate-lys);
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 14px;
+  line-height: 1.4;
+}
+.info-card__msg svg { flex: 0 0 auto; margin-top: 1px; }
+
+.info-list { margin: 0; display: flex; flex-direction: column; }
+.info-row {
+  padding: 10px 0;
+  border-top: 1px solid var(--linje-lys);
+  display: grid;
+  grid-template-columns: 120px minmax(0, 1fr);
+  gap: 4px 12px;
+}
+.info-row:first-child { border-top: 0; padding-top: 0; }
+.info-row dt {
+  padding-top: 2px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--tekst-dempet-lys);
+}
+.info-row dd { margin: 0; min-width: 0; font-size: 15px; font-weight: 600; line-height: 1.4; }
+.info-deg {
+  margin-left: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--tv2-aksent);
+  color: var(--tv2-lys);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  vertical-align: 1px;
+}
+.info-beskjeder { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; font-size: 14px; font-weight: 400; }
+
+/* Skjelett: grå plassholdere til info er hentet */
+.skjelett {
+  display: block;
+  height: 12px;
+  margin: 4px 0 8px;
+  border-radius: 999px;
+  background: var(--spor-lys);
+  animation: skjelett-puls 1.6s ease-in-out infinite;
+}
+.skjelett:last-child { margin-bottom: 4px; }
+@keyframes skjelett-puls {
+  50% { opacity: 0.5; }
+}
+
+/* Opplæring første gang */
+.intro {
+  width: calc(100% - 32px);
+  max-width: 560px;
+  max-height: calc(100vh - 32px);
+  padding: 28px;
+  border: 0;
+  border-radius: var(--radius-l);
+  background: var(--tv2-lys);
+  color: var(--tv2-mork);
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.4);
+}
+.intro::backdrop { background: rgba(25, 0, 54, 0.8); }
+.intro__close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--tv2-mork);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.intro__close:hover { background: var(--flate-lys); }
+.intro__eyebrow {
+  margin: 0 0 6px;
+  font-size: 13px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--tekst-dempet-lys);
+}
+.intro__title { padding-right: 40px; font-size: 28px; }
+.intro__lead { margin: 8px 0 20px; font-size: 16px; color: var(--tekst-dempet-lys); }
+.intro__steps {
+  margin: 0 0 24px;
+  padding: 0;
+  list-style: none;
+  counter-reset: steg;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.intro__steps li {
+  counter-increment: steg;
+  position: relative;
+  padding-left: 46px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.intro__steps li::before {
+  content: counter(steg);
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--tv2-aksent);
+  color: var(--tv2-lys);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 700;
+}
+.intro__steps b { font-size: 16px; font-weight: 700; }
+.intro__steps span { font-size: 14px; line-height: 1.45; color: var(--tekst-dempet-lys); }
+.intro__ok { width: 100%; justify-content: center; }
 
 
 /* ----------------------------------------------------------
@@ -588,7 +770,7 @@ button:disabled { cursor: not-allowed; }
 /* Bolkmeny + elementliste */
 .playlist { display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start; }
 
-.bolk-menu { flex: 0 0 132px; display: flex; flex-direction: column; gap: 8px; }
+.bolk-menu { flex: 0 0 164px; display: flex; flex-direction: column; gap: 8px; }
 
 .bolk-btn {
   width: 100%;
@@ -604,25 +786,63 @@ button:disabled { cursor: not-allowed; }
   justify-content: space-between;
   gap: 6px;
 }
-.bolk-btn:hover { border-color: var(--linje-sterk); }
-.bolk-btn.is-active { background: var(--tv2-lys); border-color: var(--tv2-lys); color: var(--tv2-mork); }
 
 .bolk-btn__text  { display: flex; flex-direction: column; gap: 2px; }
 .bolk-btn__label { font-size: 14px; font-weight: 600; }
 .bolk-btn__time  { font-size: 12px; color: var(--tekst-dempet-mork); }
-.bolk-btn.is-active .bolk-btn__time { color: var(--tekst-dempet-lys); }
 
-.klar-dot {
-  flex: 0 0 22px;
-  width: 22px;
-  height: 22px;
+/* Bolk i bolkmenyen (spillelisten og Script): knapp som åpner bolken + rund sjekkboks til høyre */
+.bolk-item {
+  min-height: 52px;
+  border: 2px solid #3E2A60;
+  border-radius: 10px;
+  background: var(--flate-mork);
+  color: var(--tv2-lys);
+  display: flex;
+  align-items: center;
+}
+.bolk-item:hover { border-color: var(--linje-sterk); }
+.bolk-item.is-active { background: var(--tv2-lys); border-color: var(--tv2-lys); color: var(--tv2-mork); }
+.bolk-item .bolk-btn {
+  flex: 1 1 auto;
+  width: auto;
+  min-width: 0;
+  min-height: 48px;
+  padding-right: 4px;
+  border: 0;
+  border-radius: 8px 0 0 8px;
+  background: transparent;
+  color: inherit;
+}
+.bolk-item.is-active .bolk-btn__time { color: var(--tekst-dempet-lys); }
+
+.bolk-check {
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
+  margin-right: 2px;
+  padding: 0;
+  border: 0;
   border-radius: 50%;
-  background: var(--tv2-aksent);
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.bolk-check__ring {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 2px solid var(--linje-sterk);
   color: var(--tv2-lys);
   display: flex;
   align-items: center;
   justify-content: center;
 }
+.bolk-check:hover .bolk-check__ring { border-color: var(--tv2-lys); }
+.bolk-item.is-active .bolk-check:hover .bolk-check__ring { border-color: var(--tv2-mork); }
+.bolk-item.is-klar .bolk-check__ring,
+.bolk-item.is-klar .bolk-check:hover .bolk-check__ring { background: var(--tv2-aksent); border-color: var(--tv2-aksent); }
 
 /* Paneler (lyse flater på mørk bakgrunn) */
 .panel {
@@ -650,19 +870,6 @@ button:disabled { cursor: not-allowed; }
 /* Elementer i bolken */
 .element-list { display: flex; flex-direction: column; gap: 8px; }
 
-.el-group {
-  margin-top: 6px;
-  padding: 0 4px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--tv2-aksent);
-}
-.el-group::after { content: ''; flex: 1 1 auto; height: 1px; background: var(--linje-lys); }
 
 /* En rad = beholder med to knapper: åpne elementet og PUSH */
 .el {
@@ -678,6 +885,33 @@ button:disabled { cursor: not-allowed; }
 .el:hover { border-color: var(--linje-lys); }
 .el.is-selected { background: #FFFFFF; border-color: var(--tv2-aksent); }
 
+.el-empty {
+  margin: 0;
+  padding: 24px 16px;
+  border: 2px dashed var(--linje-lys);
+  border-radius: var(--radius-m);
+  text-align: center;
+  font-size: 14px;
+  color: var(--tekst-dempet-lys);
+}
+
+/* Fjern elementet fra spillelisten */
+.el__remove {
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
+  margin: auto 6px auto 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-s);
+  background: transparent;
+  color: var(--tekst-dempet-lys);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.el__remove:hover { background: var(--spor-lys); color: var(--tv2-mork); }
+
 .el__open {
   flex: 1 1 auto;
   min-width: 0;
@@ -690,7 +924,7 @@ button:disabled { cursor: not-allowed; }
   display: flex;
   align-items: center;
   gap: 12px;
-  user-select: none;  /* hindrer at teksten markeres ved dobbeltklikk */
+  user-select: none;  /* hindrer at teksten markeres ved raske klikk */
 }
 
 .el__text { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
@@ -723,7 +957,7 @@ button:disabled { cursor: not-allowed; }
 }
 
 /* PUSH til VIZ */
-.push { position: relative; flex: 0 0 auto; display: flex; align-items: center; padding: 0 10px 0 2px; }
+.push { position: relative; flex: 0 0 auto; display: flex; align-items: center; padding: 0 2px; }
 
 .push__btn {
   min-height: 44px;
@@ -787,7 +1021,24 @@ button:disabled { cursor: not-allowed; }
   font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.04em;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }
+
+/* På raden er merket en knapp som fjerner PUSH-en (44 px treffflate rundt merket) */
+.viz-off {
+  flex: 0 0 auto;
+  min-height: 44px;
+  margin: auto 0;
+  padding: 0 4px;
+  border: 0;
+  border-radius: var(--radius-s);
+  background: transparent;
+  display: flex;
+  align-items: center;
+}
+.viz-off:hover .viz-badge { background: var(--aksent-hover); }
 
 /* Oversikt over VIZ-kanalene øverst i elementlisten */
 .viz-strip { margin: 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 6px; }
@@ -806,7 +1057,20 @@ button:disabled { cursor: not-allowed; }
 .viz-cell.is-on .viz-cell__name { color: var(--tv2-aksent); }
 .viz-cell__el { font-size: 12px; color: var(--tekst-dempet-lys); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .viz-cell.is-on .viz-cell__el { color: var(--tv2-mork); font-weight: 600; }
-.viz-msg { margin: 0; min-height: 17px; font-size: 13px; font-weight: 600; }
+/* Siste melding i elementlisten, med «Angre» når et element er fjernet */
+.list-msg { min-height: 17px; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; }
+.list-msg__text { margin: 0; font-size: 13px; font-weight: 600; }
+.btn-link {
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--tv2-mork);
+  border-radius: var(--radius-s);
+  background: transparent;
+  color: var(--tv2-mork);
+  font-size: 13px;
+  font-weight: 700;
+}
+.btn-link:hover { background: var(--flate-lys); }
 
 /* Elementpalett: fire grupper med kompakte knapper */
 .palette { display: flex; flex-direction: column; gap: 8px; }
@@ -853,21 +1117,6 @@ button:disabled { cursor: not-allowed; }
 .palette__btn.is-recognized .type-icon { border-color: transparent; }
 .palette__label { white-space: nowrap; }
 
-.palette__new {
-  min-height: 44px;
-  padding: 8px 12px;
-  border: 2px dashed var(--linje-sterk);
-  border-radius: var(--radius-m);
-  background: transparent;
-  color: var(--tv2-mork);
-  font-size: 15px;
-  font-weight: 500;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-}
-.palette__new:hover:not(:disabled) { background: var(--flate-lys); }
 
 /* Bryter: Rediger / Preview (stiles ut fra aria-pressed) */
 .mode-switch {
@@ -1064,24 +1313,19 @@ button:disabled { cursor: not-allowed; }
 .round-btn:hover:not(:disabled) { border-color: var(--tv2-mork); }
 .round-btn:disabled { opacity: 0.45; }
 
-/* Bolk klar */
-.klar-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 16px; }
-
-.btn-klar {
-  min-height: 48px;
-  padding: 0 22px;
-  border: 2px solid var(--tv2-lys);
-  border-radius: 999px;
-  background: transparent;
-  color: var(--tv2-lys);
-  font-size: 15px;
-  font-weight: 600;
+/* Nytt element fra paletten, før det er lagt inn i spillelisten */
+.draft-bar {
+  padding-top: 12px;
+  border-top: 1px solid var(--linje-lys);
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 10px;
+  justify-content: space-between;
+  gap: 10px 16px;
 }
-.btn-klar:hover { background: var(--flate-mork); }
-.btn-klar[aria-pressed="true"] { background: var(--tv2-aksent); border-color: var(--tv2-aksent); }
+.draft-bar__text { margin: 0; flex: 1 1 220px; font-size: 13px; color: var(--tekst-dempet-lys); }
+.draft-bar__actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.draft-bar .btn-outline { margin-top: 0; }
 
 
 /* ----------------------------------------------------------
@@ -1454,7 +1698,7 @@ button:disabled { cursor: not-allowed; }
 }
 .g-faks-kilde b { font-weight: 600; }
 
-/* Foto-konk: stående bildekort på lys, blåhvit bakgrunn */
+/* Fotokonkurranse: stående bildekort på lys, blåhvit bakgrunn */
 .g-konk {
   position: absolute;
   left: 36.5cqw;
@@ -1476,8 +1720,7 @@ button:disabled { cursor: not-allowed; }
   gap: 0.25cqw;
   font-size: 1.3cqw;
 }
-.g-konk__bruker { display: flex; align-items: center; gap: 0.5cqw; }
-.g-konk__sted { font-weight: 700; }
+.g-konk__tittel { font-weight: 700; }
 .g-konk__tekst {
   position: absolute;
   left: 14cqw;
@@ -1540,6 +1783,8 @@ button:disabled { cursor: not-allowed; }
 /* Ingen rulling for dem som har slått av bevegelse */
 @media (prefers-reduced-motion: reduce) {
   .g-ticker__rull { animation: none; padding-left: 1.2cqw; }
+  .is-shake,
+  .skjelett { animation: none; }
 }
 
 
@@ -1559,6 +1804,9 @@ button:disabled { cursor: not-allowed; }
   /* Bolkmenyen legger seg vannrett og kan rulles */
   .bolk-menu { flex-basis: 100%; flex-direction: row; overflow-x: auto; padding-bottom: 4px; }
   .bolk-btn { width: auto; min-width: 110px; }
+  .bolk-item { flex: 0 0 auto; }
+  .bolk-item .bolk-btn { min-width: 80px; }
+  .info-row { grid-template-columns: 1fr; }
 
   .empty,
   .panel--elements { min-height: 0; }
