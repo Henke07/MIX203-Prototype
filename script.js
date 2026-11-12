@@ -781,7 +781,7 @@ function elLabel(el) {
 // Når innerHTML byttes ut, mister knappen fokus. Disse to
 // funksjonene husker hvilken knapp som hadde fokus og gir det tilbake,
 // slik at tastaturbrukere ikke mister plassen sin.
-const FOCUS_ATTRS = ['data-id', 'data-push', 'data-viz', 'data-unviz', 'data-remove', 'data-grip', 'data-bolk', 'data-klar',
+const FOCUS_ATTRS = ['data-id', 'data-push', 'data-viz', 'data-unviz', 'data-grip', 'data-bolk', 'data-klar',
   'data-script-bolk', 'data-script-klar', 'data-goto', 'data-task', 'data-go', 'data-add', 'data-serie'];
 function rememberFocus() {
   const active = document.activeElement;
@@ -922,16 +922,16 @@ const GMN_G = '<svg class="g-logo" viewBox="0 0 100 100" aria-hidden="true" focu
 const TV2_LOGO = '<span class="g-tv2" aria-hidden="true"><span class="g-tv2__2">2</span><span class="g-tv2__sub">Direkte</span></span>';
 const IG_ICON = '<svg class="g-ig" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true" focusable="false"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.3" cy="6.7" r="1.2" fill="currentColor" stroke="none"/></svg>';
 
-// Kamerabilde (plassholder) bak supere, stolper og overlegg: morgenhimmel
-// med åser i dis, som i God morgen Norge. TV 2-logoen står oppe til høyre.
+// Kamerabilde (plassholder) bak supere, stolper og overlegg: soloppgang i gult
+// og oransje med åser i dis, som i God morgen Norge. TV 2-logoen står oppe til høyre.
 function kamera(person = true) {
   return `
     <div class="g-kamera" aria-hidden="true">
       <svg class="g-kamera__land" viewBox="0 0 160 90" preserveAspectRatio="xMidYMax slice" focusable="false">
-        <path d="M0 58C18 50 30 54 46 48S78 38 98 45 136 40 160 47V90H0z" fill="#C3D3E3"/>
-        <path d="M0 66C22 58 44 64 66 58S114 54 160 62V90H0z" fill="#A3B9CF"/>
-        <path d="M0 72C30 68 58 74 92 69S138 68 160 72V90H0z" fill="#EEF2F6" opacity=".85"/>
-        <path d="M0 80C34 76 70 82 108 78S146 78 160 80V90H0z" fill="#8EA6BE"/>
+        <path d="M0 58C18 50 30 54 46 48S78 38 98 45 136 40 160 47V90H0z" fill="#F7D3A0"/>
+        <path d="M0 66C22 58 44 64 66 58S114 54 160 62V90H0z" fill="#F4B47A"/>
+        <path d="M0 72C30 68 58 74 92 69S138 68 160 72V90H0z" fill="#FDEBD0" opacity=".85"/>
+        <path d="M0 80C34 76 70 82 108 78S146 78 160 80V90H0z" fill="#EF9A60"/>
       </svg>
       ${person ? '<span class="g-kamera__kropp"></span><span class="g-kamera__hode"></span>' : ''}
     </div>
@@ -1433,26 +1433,29 @@ function renderElementList() {
     const viz = vizFor(el.id);
     const menuOpen = state.pushMenu === el.id;
     const label = esc(elLabel(el));
-    // Elementer som er lagt til i etterkant, kan dras til en ny plass i bolken
-    const flyttbar = !!el.isNew;
+    // Elementer som er lagt til i etterkant, er merket «Ny» i stedet for typeikonet
+    // og kan dras til en ny plass i bolken (håndtaket står rett til venstre for PUSH).
+    // De slettes med «Slett element» i preview.
+    const ny = !!el.isNew;
     return `
-      <div class="el${isSelected ? ' is-selected' : ''}${flyttbar ? ' is-flyttbar' : ''}" data-row="${el.id}">
-        ${flyttbar ? `
-        <button type="button" class="el__grip" data-grip="${el.id}" title="Dra for å flytte"
-          aria-label="Flytt ${label}. Bruk piltast opp og ned.">${svgIcon(GRIP_PATH, 20, 3)}</button>` : ''}
+      <div class="el${isSelected ? ' is-selected' : ''}${ny ? ' is-flyttbar' : ''}" data-row="${el.id}">
         <button type="button" class="el__open" data-id="${el.id}"${isSelected ? ' aria-current="true"' : ''}>
-          <span class="type-icon">${svgIcon(ICON_PATHS[el.type])}</span>
+          ${ny
+            ? '<span class="type-icon type-icon--ny">Ny<span class="sr-only"> element</span></span>'
+            : `<span class="type-icon">${svgIcon(ICON_PATHS[el.type])}</span>`}
           <span class="el__text">
             <span class="el__title">${esc(elTitle(el) || 'Uten tittel')}</span>
             <span class="el__meta">${esc(metaText(el))}</span>
           </span>
-          ${el.isNew ? '<span class="badge">NY</span>' : ''}
         </button>
         ${viz ? `
         <button type="button" class="viz-off" data-unviz="${el.id}" title="Fjern fra VIZ${viz}"
           aria-label="Klar på VIZ${viz}. Fjern ${label} fra VIZ${viz}">
           <span class="viz-badge">VIZ${viz}${svgIcon(CROSS_PATH, 12, 3)}</span>
         </button>` : ''}
+        ${ny ? `
+        <button type="button" class="el__grip" data-grip="${el.id}" title="Dra for å flytte"
+          aria-label="Flytt ${label}. Bruk piltast opp og ned.">${svgIcon(GRIP_PATH, 20, 3)}</button>` : ''}
         <div class="push">
           <button type="button" class="push__btn" data-push="${el.id}" aria-haspopup="menu" aria-expanded="${menuOpen}"${menuOpen ? ` aria-controls="push-meny-${el.id}"` : ''}
             aria-label="PUSH til VIZ: ${esc(elLabel(el))}">
@@ -1460,9 +1463,6 @@ function renderElementList() {
           </button>
           ${menuOpen ? pushMenu(el, viz) : ''}
         </div>
-        ${el.isNew ? `
-        <button type="button" class="el__remove" data-remove="${el.id}" title="Fjern fra spillelisten"
-          aria-label="Fjern ${label} fra spillelisten">${svgIcon(CROSS_PATH, 18, 2)}</button>` : ''}
       </div>`;
   }).join('');
 
@@ -1575,6 +1575,8 @@ function renderPreview() {
   // «Legg element til spilleliste» i stedet for pilene.
   $('stepper').hidden = !!sel.draft;
   $('draft-bar').hidden = !sel.draft;
+  // «Slett element» bare for elementer som er lagt til i etterkant
+  $('delete-row').hidden = !!sel.draft || !sel.el.isNew;
   if (sel.draft) {
     const etter = state.selectedId ? activeBolk().els.find((e) => e.id === state.selectedId) : null;
     $('draft-note').textContent = etter
@@ -1890,7 +1892,8 @@ function cancelDraft() {
   if (state.selectedId) focusElementRow(state.selectedId);
 }
 
-// Fjerner et element fra bolken. Ligger det på en VIZ-kanal, tas det av.
+// Sletter et nytt element fra bolken («Slett element» i preview).
+// Ligger det på en VIZ-kanal, tas det av.
 function removeElement(id) {
   const els = activeBolk().els;
   const index = els.findIndex((e) => e.id === id);
@@ -1905,14 +1908,12 @@ function removeElement(id) {
     state.mode = 'preview';
     state.serieIndex = 0;
   }
-  setMsg(`${elLabel(el)} er fjernet fra ${bolkNavn(state.activeBolk)}.`
+  setMsg(`${elLabel(el)} er slettet fra ${bolkNavn(state.activeBolk)}.`
     + (kanal ? ` Det ble også tatt av VIZ${kanal}.` : ''), { el, bolk: state.activeBolk, index });
   render();
 
-  // Fokus til fjern-knappen på raden som nå står på samme plass, eller «Angre»
-  const next = els[index] || els[index - 1];
-  const target = next ? document.querySelector(`[data-remove="${next.id}"]`) : null;
-  (target || $('undo-btn')).focus();
+  // Slett-knappen forsvinner, så fokus går til «Angre»
+  $('undo-btn').focus();
 }
 
 // Flytter et element til en ny plass i bolken (indeks blant de andre elementene)
@@ -2248,11 +2249,6 @@ function bindEvents() {
       unpush(unviz.dataset.unviz);
       return;
     }
-    const remove = e.target.closest('[data-remove]');
-    if (remove) {
-      removeElement(remove.dataset.remove);
-      return;
-    }
     // Ett klikk (eller Enter/mellomrom) åpner elementet
     const btn = e.target.closest('[data-id]');
     if (btn) openElement(btn.dataset.id);
@@ -2309,6 +2305,10 @@ function bindEvents() {
     if (btn && !btn.disabled) newDraft(btn.dataset.add);
   });
   $('draft-add').addEventListener('click', addDraft);
+  $('delete-btn').addEventListener('click', () => {
+    const sel = selected();
+    if (sel && !sel.draft && sel.el.isNew) removeElement(sel.el.id);
+  });
   $('draft-cancel').addEventListener('click', cancelDraft);
 
   $('mode-edit').addEventListener('click', () => setMode('edit'));

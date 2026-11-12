@@ -25,7 +25,7 @@ Ren JavaScript uten rammeverk. Hold det slik.
 - Lister (oppgaver, bolker, elementer, palett, script) tegnes med `innerHTML`, og klikk
   fanges med event delegation via `data-`-attributter: `data-id` (åpne element),
   `data-push` og `data-viz` (PUSH-menyen), `data-unviz` (VIZ-merket, fjerner PUSH),
-  `data-remove` (fjern element), `data-grip` (håndtak for å flytte), `data-bolk`, `data-klar` (sjekkboksen på en bolk),
+  `data-grip` (håndtak for å flytte), `data-bolk`, `data-klar` (sjekkboksen på en bolk),
   `data-script-bolk`, `data-script-klar` (sjekkboksen på en bolk i scriptet),
   `data-goto` (grafikkpunkt i scriptet), `data-task-card` (hele oppgavekortet),
   `data-task` (avkrysningen), `data-go`,
@@ -72,15 +72,16 @@ Hovedmenyen: Dagens oppgaver · Script · Spilleliste.
 - **Bolkene nummereres 0–7** overalt. Bolk 0 er åpningen. Nummeret lages bare i
   `bolkNavn()`.
 - **Ett klikk** på et element åpner det i preview. Med tastatur fungerer Enter.
-- **Fjerne elementer:** elementer som er lagt til i etterkant, har et kryss til høyre
-  på raden som fjerner dem fra bolken (og tar dem av VIZ). «Angre» legger dem tilbake
-  på samme plass. Elementer fra kjøreplanen kan ikke fjernes.
-- **Dra og slipp:** elementer som er lagt til i etterkant, kan dras (håndtaket eller
-  selve raden) til en ny plass i bolken de ligger i, ikke til andre bolker. En lilla
+- **Nye elementer** (lagt til i etterkant, `isNew`) er merket «Ny» der typeikonet
+  ellers står. De slettes med «Slett element» i preview, som bare vises når et nytt
+  element er valgt. Sletting tar elementet av VIZ, og «Angre» legger det tilbake på
+  samme plass. Elementer fra kjøreplanen kan ikke slettes.
+- **Dra og slipp:** elementer som er lagt til i etterkant, kan dras (håndtaket rett til
+  venstre for PUSH, eller selve raden) til en ny plass i bolken de ligger i, ikke til andre bolker. En lilla
   strek viser hvor elementet havner. Esc eller slipp utenfor listen avbryter. Med
   tastatur: piltast opp og ned på håndtaket. Rekkefølgen ligger i `state.bolker`.
 - **PUSH til VIZ:** hver rad er en beholder med flere knapper: én som åpner elementet,
-  VIZ-merket (når elementet er pushet), PUSH-knappen og fjern-krysset (bare på nye). PUSH åpner en meny med VIZ1, VIZ2 og VIZ3 (og «Fjern» hvis
+  VIZ-merket (når elementet er pushet), dra-håndtaket (bare på nye) og PUSH-knappen. PUSH åpner en meny med VIZ1, VIZ2 og VIZ3 (og «Fjern» hvis
   elementet allerede ligger på en kanal). Valget gjør elementet klart, slik at
   produsenten kan sende det fra VIZ (Vizrt) til TV-skjermen. Raden får et lilla
   «VIZ2»-merke, og klikk på merket fjerner PUSH-en. Hver kanal har ett element om gangen, så det gamle tas av når et nytt
@@ -135,9 +136,12 @@ Hovedmenyen: Dagens oppgaver · Script · Spilleliste.
 **Grafikken i preview** skal ligne God morgen Norge slik den ser ut på TV, ikke
 verktøyet. Den har egne farger i `:root` (`--gmn-*`): myke gradienter i lys blå,
 beige og fersken, korallrød og sennepsgul som aksent, mørk hashtag-pille.
-Supere, Stolper og Overlegg ligger over et lyst «kamerabilde» (morgenhimmel med
-åser i dis, `kamera()`), med hvite flater, varme gule faner, korall som aksent og
-marineblå tekst. Ingen brune farger. Bilder (stillbilde, bildeserie, faksimile,
+Supere, Stolper og Overlegg er hovedsakelig oransje og gule, som God morgen Norge.
+De ligger over et «kamerabilde» med soloppgang og åser i dis (`kamera()`), med hvite
+flater, varme gule faner og korall som aksent. Blått er bare en liten detalj (toppen
+av himmelen, hashtag-pillen og kanalfeltet på Straks-plakaten). Ingen brune farger.
+Navnesuperen har ingen stripe, og i infosuperen starter tittel og tekst på samme
+venstrekant. Bilder (stillbilde, bildeserie, faksimile,
 fotokonkurranse) er godkjent som de er. Ikke endre dem eller stilene de deler
 (`.g-pille`, `.g-hjorne`, `.g-tv2`, `.g-bg--*`, `.g-scene--*`). Størrelser
 er i `cqw`, slik at grafikken skalerer med panelet. Stolpene er høye og smale
