@@ -24,7 +24,9 @@ Ren JavaScript uten rammeverk. Hold det slik.
 - Handlinger endrer `state` og kaller `render()`, som tegner grensesnittet på nytt.
 - Lister (oppgaver, bolker, elementer, palett, script) tegnes med `innerHTML`, og klikk
   fanges med event delegation via `data-`-attributter: `data-id` (åpne element),
-  `data-push` og `data-viz` (PUSH-menyen), `data-unviz` (VIZ-merket, fjerner PUSH),
+  `data-push` og `data-viz` (PUSH-menyen), `data-push-view` (bytter til og fra «Push ett
+  bilde»), `data-bilde-viz` og `data-bilde-grip` (ett bilde i «Push ett bilde»),
+  `data-unviz` (VIZ-merket med kanalnummer, fjerner PUSH),
   `data-grip` (håndtak for å flytte), `data-bolk`, `data-klar` (sjekkboksen på en bolk),
   `data-script-bolk`, `data-script-klar` (sjekkboksen på en bolk i scriptet),
   `data-goto` (grafikkpunkt i scriptet), `data-task-card` (hele oppgavekortet),
@@ -81,12 +83,22 @@ Hovedmenyen: Dagens oppgaver · Script · Spilleliste.
   strek viser hvor elementet havner. Esc eller slipp utenfor listen avbryter. Med
   tastatur: piltast opp og ned på håndtaket. Rekkefølgen ligger i `state.bolker`.
 - **PUSH til VIZ:** hver rad er en beholder med flere knapper: én som åpner elementet,
-  VIZ-merket (når elementet er pushet), dra-håndtaket (bare på nye) og PUSH-knappen. PUSH åpner en meny med VIZ1, VIZ2 og VIZ3 (og «Fjern» hvis
-  elementet allerede ligger på en kanal). Valget gjør elementet klart, slik at
-  produsenten kan sende det fra VIZ (Vizrt) til TV-skjermen. Raden får et lilla
-  «VIZ2»-merke, og klikk på merket fjerner PUSH-en. Hver kanal har ett element om gangen, så det gamle tas av når et nytt
-  pushes til samme kanal. Menyen brukes med piltaster, Home/End, Enter, Esc og Tab,
-  og lukkes med klikk utenfor. Tilstanden ligger i `state.viz`.
+  VIZ-merkene (ett per kanal elementet ligger på), dra-håndtaket (bare på nye) og
+  PUSH-knappen. PUSH åpner en meny med VIZ1, VIZ2 og VIZ3 (og «Fjern» hvis elementet
+  allerede ligger på en kanal). Valget gjør elementet klart, slik at produsenten kan
+  sende det fra VIZ (Vizrt) til TV-skjermen. Raden får et lilla «VIZ2»-merke, og klikk
+  på merket fjerner PUSH-en. Hver kanal har én ting om gangen, så det gamle tas av når
+  noe nytt pushes til samme kanal. Menyen brukes med piltaster, Home/End, Enter, Esc og
+  Tab, og lukkes med klikk utenfor. Tilstanden ligger i `state.viz` som `{ id, bilde }`
+  per kanal (`bilde` er null for hele elementet).
+- **Push ett bilde:** bildeserier og fotokonkurransen har i tillegg «Push ett bilde» i
+  PUSH-menyen. Det åpner en liste over bildene i serien (`state.pushView = 'bilder'`).
+  Hvert bilde kan pushes til VIZ1–3 for seg (klikk igjen tar det av), og menyen blir
+  stående åpen. Bildene kan dras til ny rekkefølge med samme dra-symbol som i
+  elementlisten (eller piltast opp og ned på symbolet). Rekkefølgen gjelder også
+  serien i preview og blir liggende. VIZ følger bildet når det flyttes. Merket på raden
+  viser kanal og bildenummer («VIZ2 [bilde]3»). Bildet beholder utseendet sitt når det
+  flyttes (`bildeSeed()`).
 - Typen til det valgte elementet utheves i paletten («gjenkjennes»).
 - **Klikk i paletten** åpner et nytt element i Rediger-modus (`state.draft`), men
   legger det ikke inn i bolken. «Legg element til spilleliste» legger det inn under
@@ -137,7 +149,8 @@ Hovedmenyen: Dagens oppgaver · Script · Spilleliste.
 verktøyet. Den har egne farger i `:root` (`--gmn-*`): myke gradienter i lys blå,
 beige og fersken, korallrød og sennepsgul som aksent, mørk hashtag-pille.
 Supere, Stolper og Overlegg er hovedsakelig oransje og gule, som God morgen Norge.
-De ligger over et «kamerabilde» med soloppgang og åser i dis (`kamera()`), med hvite
+De ligger over et «kamerabilde» med soloppgang og åser i dis (`kamera()`). Bare
+navnesuperen har en personsilhuett i bildet (`kamera(true)`). Elementene har hvite
 flater, varme gule faner og korall som aksent. Blått er bare en liten detalj (toppen
 av himmelen, hashtag-pillen og kanalfeltet på Straks-plakaten). Ingen brune farger.
 Navnesuperen har ingen stripe, og i infosuperen starter tittel og tekst på samme

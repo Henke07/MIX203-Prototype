@@ -611,8 +611,12 @@ const state = {
   draft: null,            // nytt element fra paletten som ikke er lagt i spillelisten ennå
   mode: 'preview',        // 'preview' eller 'edit'
   serieIndex: 0,          // bildet som vises når en bildeserie (eller fotokonkurransen) er åpen
-  viz: { 1: null, 2: null, 3: null },  // id på elementet som er klart på hver VIZ-kanal
+  // Det som er klart på hver VIZ-kanal: { id, bilde } der bilde er null (hele
+  // elementet) eller ett bilde i en bildeserie (selve bildeobjektet, så det
+  // følger med når rekkefølgen endres)
+  viz: { 1: null, 2: null, 3: null },
   pushMenu: null,         // id på elementet som har PUSH-menyen åpen
+  pushView: 'kanaler',    // 'kanaler' (VIZ1–3) eller 'bilder' («Push ett bilde»)
   msg: '',                // siste melding i elementlisten (leses opp av skjermleser)
   undo: null,             // sist fjernede element { el, bolk, index }, for «Angre»
   nextId: 1,              // teller for nye elementer
@@ -728,10 +732,46 @@ function findElement(id) {
   return null;
 }
 
-// VIZ-kanalen elementet ligger klart på, eller null
+// VIZ-kanalen hele elementet ligger klart på, eller null
 const VIZ_KANALER = [1, 2, 3];
 function vizFor(id) {
-  return VIZ_KANALER.find((k) => state.viz[k] === id) || null;
+  return VIZ_KANALER.find((k) => state.viz[k] && state.viz[k].id === id && !state.viz[k].bilde) || null;
+}
+
+// Alle kanalene der elementet eller et av bildene i det ligger
+function vizKanaler(id) {
+  return VIZ_KANALER.filter((k) => state.viz[k] && state.viz[k].id === id);
+}
+
+// Kanalen ett bilde i en serie ligger på, eller null
+function vizForBilde(bilde) {
+  return VIZ_KANALER.find((k) => state.viz[k] && state.viz[k].bilde === bilde) || null;
+}
+
+// Tallet plassholderbildet tegnes ut fra. Bildet beholder utseendet sitt når
+// rekkefølgen endres (nr settes første gang bildene flyttes, se moveBilde).
+function bildeSeed(el, b, i) {
+  return hash(el.id) + (b.nr != null ? b.nr : i);
+}
+
+// «Bilde» eller «Bidrag» (fotokonkurransen)
+function bildeOrd(el) {
+  return el.type === 'fotokonk' ? 'Bidrag' : 'Bilde';
+}
+
+// Navnet på et bilde i serien: motivet, eller navnet på den som sendte inn
+function bildeNavn(b) {
+  return b.motiv || b.navn || '';
+}
+
+// Teksten for det som ligger på en kanal, f.eks. «Bildeserie · Bilder fra premieren – bilde 2 av 5»
+function vizLabel(entry) {
+  const found = findElement(entry.id);
+  if (!found) return '';
+  const el = found.el;
+  if (!entry.bilde) return elLabel(el);
+  const i = el.bilder.indexOf(entry.bilde);
+  return `${elLabel(el)} – ${bildeOrd(el).toLowerCase()} ${i + 1} av ${el.bilder.length}`;
 }
 
 // Returnerer det valgte elementet med plassering, eller null.
@@ -781,7 +821,8 @@ function elLabel(el) {
 // Når innerHTML byttes ut, mister knappen fokus. Disse to
 // funksjonene husker hvilken knapp som hadde fokus og gir det tilbake,
 // slik at tastaturbrukere ikke mister plassen sin.
-const FOCUS_ATTRS = ['data-id', 'data-push', 'data-viz', 'data-unviz', 'data-grip', 'data-bolk', 'data-klar',
+const FOCUS_ATTRS = ['data-id', 'data-push', 'data-viz', 'data-unviz', 'data-grip', 'data-push-view',
+  'data-bilde-viz', 'data-bilde-grip', 'data-bolk', 'data-klar',
   'data-script-bolk', 'data-script-klar', 'data-goto', 'data-task', 'data-go', 'data-add', 'data-serie'];
 function rememberFocus() {
   const active = document.activeElement;
@@ -924,7 +965,8 @@ const IG_ICON = '<svg class="g-ig" viewBox="0 0 24 24" fill="none" stroke="curre
 
 // Kamerabilde (plassholder) bak supere, stolper og overlegg: soloppgang i gult
 // og oransje med åser i dis, som i God morgen Norge. TV 2-logoen står oppe til høyre.
-function kamera(person = true) {
+// Bare navnesuperen har en person i bildet (person = true).
+function kamera(person = false) {
   return `
     <div class="g-kamera" aria-hidden="true">
       <svg class="g-kamera__land" viewBox="0 0 160 90" preserveAspectRatio="xMidYMax slice" focusable="false">
@@ -959,7 +1001,7 @@ function bildeFlate(kind, seed, kreditering) {
 // innerHTML – eller [Feltnavn] når feltet er tomt.
 const STAGE = {
   navnesuper: (el, v) => `
-    ${kamera()}
+    ${kamera(true)}
     <div class="g-super">
       <span class="g-super__navn">${v('navn')}</span>
       <span class="g-super__tittel">${v('tittel')}</span>
@@ -1021,7 +1063,7 @@ const STAGE = {
     if (!el.bilder.length) return '<div class="g-bg g-bg--varm"></div>';
     const i = serieIndex(el);
     const bilde = el.bilder[i];
-    return bildeFlate(bilde.scene, hash(el.id) + i, esc(bilde.kreditering || '[Kreditering]'));
+    return bildeFlate(bilde.scene, bildeSeed(el, bilde, i), esc(bilde.kreditering || '[Kreditering]'));
   },
 
   faksimile: (el, v) => {
@@ -1054,7 +1096,7 @@ const STAGE = {
     const kort = b ? `
       <div class="g-konk">
         <span class="g-konk__bilde">
-          ${scene(b.scene, hash(el.id) + i)}
+          ${scene(b.scene, bildeSeed(el, b, i))}
           <span class="g-kreditering">Foto: ${esc(b.navn || '[Navn]')}</span>
         </span>
         <span class="g-konk__info">
@@ -1105,7 +1147,7 @@ const STAGE = {
     <span class="g-fotokred">Foto <b>${v('navn')}</b></span>`,
 
   straks: (el, v) => `
-    ${kamera(false)}
+    ${kamera()}
     <div class="g-straks">
       <span class="g-straks__fane">${v('fane')}</span>
       <span class="g-straks__rad">
@@ -1337,7 +1379,7 @@ function scriptTidslinje(i, script) {
     let link = '';
     const found = elId ? findElement(elId) : null;
     if (found) {
-      const viz = vizFor(elId);
+      const viz = vizKanaler(elId)[0];
       link = `
         <button type="button" class="tl__link" data-goto="${elId}">
           <span class="type-icon">${svgIcon(ICON_PATHS[found.el.type], 18)}</span>
@@ -1432,6 +1474,17 @@ function renderElementList() {
     const isSelected = !state.draft && el.id === state.selectedId;
     const viz = vizFor(el.id);
     const menuOpen = state.pushMenu === el.id;
+    // Ett lilla merke per kanal elementet (eller et bilde i det) ligger på
+    const merker = vizKanaler(el.id).map((k) => {
+      const b = state.viz[k].bilde;
+      const nr = b ? el.bilder.indexOf(b) + 1 : 0;
+      const hva = b ? `${bildeOrd(el).toLowerCase()} ${nr} i ` : '';
+      return `
+        <button type="button" class="viz-off" data-unviz="${k}" title="Fjern fra VIZ${k}"
+          aria-label="Klar på VIZ${k}: ${hva}${esc(elLabel(el))}. Fjern fra VIZ${k}">
+          <span class="viz-badge${b ? ' viz-badge--bilde' : ''}">VIZ${k}${b ? `<span class="viz-badge__bilde">${svgIcon(ICON_PATHS.stillbilde, 12, 2.4)}${nr}</span>` : ''}${svgIcon(CROSS_PATH, 12, 3)}</span>
+        </button>`;
+    }).join('');
     const label = esc(elLabel(el));
     // Elementer som er lagt til i etterkant, er merket «Ny» i stedet for typeikonet
     // og kan dras til en ny plass i bolken (håndtaket står rett til venstre for PUSH).
@@ -1448,11 +1501,7 @@ function renderElementList() {
             <span class="el__meta">${esc(metaText(el))}</span>
           </span>
         </button>
-        ${viz ? `
-        <button type="button" class="viz-off" data-unviz="${el.id}" title="Fjern fra VIZ${viz}"
-          aria-label="Klar på VIZ${viz}. Fjern ${label} fra VIZ${viz}">
-          <span class="viz-badge">VIZ${viz}${svgIcon(CROSS_PATH, 12, 3)}</span>
-        </button>` : ''}
+        ${merker}
         ${ny ? `
         <button type="button" class="el__grip" data-grip="${el.id}" title="Dra for å flytte"
           aria-label="Flytt ${label}. Bruk piltast opp og ned.">${svgIcon(GRIP_PATH, 20, 3)}</button>` : ''}
@@ -1466,19 +1515,33 @@ function renderElementList() {
       </div>`;
   }).join('');
 
+  holdMenyInnenfor();
   renderViz();
 }
 
-// Rullegardinmenyen bak PUSH: VIZ1–3, og «Fjern» hvis elementet ligger på en kanal
+// PUSH-menyen henger under PUSH-knappen. På smale skjermer flyttes den
+// sidelengs, så den ikke stikker utenfor skjermen.
+function holdMenyInnenfor() {
+  const menu = document.querySelector('.push__menu');
+  if (!menu) return;
+  const kant = 16;
+  const box = menu.getBoundingClientRect();
+  let flytt = 0;
+  if (box.left < kant) flytt = kant - box.left;
+  else if (box.right > window.innerWidth - kant) flytt = window.innerWidth - kant - box.right;
+  if (flytt) menu.style.right = `${parseFloat(getComputedStyle(menu).right) - flytt}px`;
+}
+
+// Rullegardinmenyen bak PUSH: VIZ1–3, «Push ett bilde» for bildeserier og
+// «Fjern» hvis elementet ligger på en kanal
 function pushMenu(el, current) {
+  if (state.pushView === 'bilder' && erSerie(el)) return bildePushMenu(el);
+
   const items = VIZ_KANALER.map((k) => {
-    const holderId = state.viz[k];
+    const entry = state.viz[k];
     let info = 'Ledig';
-    if (holderId === el.id) info = 'Dette elementet';
-    else if (holderId) {
-      const holder = findElement(holderId);
-      info = `Erstatter ${elLabel(holder.el)}`;
-    }
+    if (entry && entry.id === el.id && !entry.bilde) info = 'Dette elementet';
+    else if (entry) info = `Erstatter ${vizLabel(entry)}`;
     return `
       <button type="button" class="push__item" role="menuitemradio" aria-checked="${current === k}" data-viz="${k}" tabindex="-1">
         <span class="push__check">${current === k ? svgIcon(CHECK_PATH, 16, 2.5) : ''}</span>
@@ -1489,6 +1552,18 @@ function pushMenu(el, current) {
       </button>`;
   }).join('');
 
+  // Bildeserier (også fotokonkurransen) kan pushe ett og ett bilde
+  const ettBilde = erSerie(el) && el.bilder.length ? `
+    <div class="push__sep" role="separator"></div>
+    <button type="button" class="push__item" role="menuitem" aria-haspopup="true" data-push-view="bilder" tabindex="-1">
+      <span class="push__check">${svgIcon(ICON_PATHS.stillbilde, 16, 2)}</span>
+      <span class="push__text">
+        <span class="push__name">Push ett bilde</span>
+        <span class="push__info">${el.bilder.length} ${el.type === 'fotokonk' ? 'bidrag' : 'bilder'} i serien</span>
+      </span>
+      <span class="push__chevron">${svgIcon('<path d="M9 6l6 6-6 6"/>', 16, 2.2)}</span>
+    </button>` : '';
+
   const remove = current ? `
     <div class="push__sep" role="separator"></div>
     <button type="button" class="push__item" role="menuitem" data-viz="0" tabindex="-1">
@@ -1496,18 +1571,54 @@ function pushMenu(el, current) {
       <span class="push__text"><span class="push__name">Fjern fra VIZ${current}</span></span>
     </button>` : '';
 
-  return `<div class="push__menu" id="push-meny-${el.id}" role="menu" aria-label="Velg VIZ for ${esc(elLabel(el))}">${items}${remove}</div>`;
+  return `<div class="push__menu" id="push-meny-${el.id}" role="menu" aria-label="Velg VIZ for ${esc(elLabel(el))}">${items}${ettBilde}${remove}</div>`;
+}
+
+// «Push ett bilde»: alle bildene i serien. Hvert bilde kan pushes til VIZ1–3
+// for seg, og rekkefølgen endres med dra-symbolet (som i elementlisten).
+function bildePushMenu(el) {
+  const ord = bildeOrd(el);
+  const rader = el.bilder.map((b, i) => {
+    const kanal = vizForBilde(b);
+    const navn = esc(bildeNavn(b) || `${ord} ${i + 1}`);
+    const under = esc(b.kreditering || stedTekst(b) || '');
+    const knapper = VIZ_KANALER.map((k) => `
+      <button type="button" class="bilde-push__viz" data-bilde-viz="${i}:${k}" aria-pressed="${kanal === k}"
+        aria-label="VIZ${k}" title="${kanal === k ? `Fjern fra VIZ${k}` : `Push til VIZ${k}`}">VIZ${k}</button>`).join('');
+    return `
+      <li class="bilde-push__rad${kanal ? ' is-on' : ''}" data-bilde-row="${i}">
+        <span class="bilde-push__info">
+          <span class="bilde-push__thumb">${scene(b.scene, bildeSeed(el, b, i))}</span>
+          <span class="bilde-push__tekst"><b>${i + 1}. ${navn}</b>${under ? `<span>${under}</span>` : ''}</span>
+        </span>
+        <button type="button" class="el__grip" data-bilde-grip="${i}" title="Dra for å flytte"
+          aria-label="Flytt ${ord.toLowerCase()} ${i + 1}: ${navn}. Bruk piltast opp og ned.">${svgIcon(GRIP_PATH, 20, 3)}</button>
+        <span class="bilde-push__kanaler" role="group" aria-label="Push ${ord.toLowerCase()} ${i + 1}: ${navn}">${knapper}</span>
+      </li>`;
+  }).join('');
+  return `
+    <div class="push__menu push__menu--bilder" id="push-meny-${el.id}" role="dialog" aria-labelledby="bilde-push-tittel">
+      <div class="bilde-push__head">
+        <button type="button" class="bilde-push__tilbake" data-push-view="kanaler" aria-label="Tilbake til VIZ-valgene">
+          ${svgIcon('<path d="M15 6l-6 6 6 6"/>', 18, 2.2)}
+        </button>
+        <span class="bilde-push__tittel" id="bilde-push-tittel">Push ett bilde</span>
+      </div>
+      <p class="bilde-push__hint">Velg VIZ for hvert bilde. Dra for å endre rekkefølgen.</p>
+      <ol class="bilde-push__liste" id="bilde-push-liste">${rader}</ol>
+    </div>`;
 }
 
 // Oversikt over hva som ligger klart på hver VIZ-kanal
 function renderViz() {
   $('viz-strip').innerHTML = VIZ_KANALER.map((k) => {
-    const found = state.viz[k] ? findElement(state.viz[k]) : null;
+    const entry = state.viz[k];
+    const found = entry ? findElement(entry.id) : null;
     const where = found && found.bolk !== state.activeBolk ? ` (${bolkNavn(found.bolk)})` : '';
     return `
       <li class="viz-cell${found ? ' is-on' : ''}">
         <span class="viz-cell__name">VIZ${k}</span>
-        <span class="viz-cell__el">${found ? esc(elLabel(found.el)) + where : 'Ledig'}</span>
+        <span class="viz-cell__el">${found ? esc(vizLabel(entry)) + where : 'Ledig'}</span>
       </li>`;
   }).join('');
   $('list-msg').textContent = state.msg;
@@ -1640,7 +1751,7 @@ function bilderEditor(el) {
   const current = serieIndex(el);
   const items = el.bilder.map((b, i) => `
     <li class="bilde-rad${i === current ? ' is-current' : ''}" data-bilde="${i}">
-      <span class="bilde-rad__thumb">${scene(b.scene, hash(el.id) + i)}</span>
+      <span class="bilde-rad__thumb">${scene(b.scene, bildeSeed(el, b, i))}</span>
       <span class="bilde-rad__nr">Bilde ${i + 1}</span>
       <button type="button" class="icon-btn" data-action="fjern-bilde" data-index="${i}"
         aria-label="Fjern bilde ${i + 1}"${el.bilder.length < 2 ? ' disabled' : ''}>${svgIcon(CROSS_PATH, 18, 2)}</button>
@@ -1712,7 +1823,7 @@ function renderSerieNav() {
   $('serie-next').disabled = i === n - 1;
   $('serie-thumbs').innerHTML = el.bilder.map((b, j) => `
     <button type="button" class="serie-thumb${j === i ? ' is-current' : ''}" data-serie="${j}"
-      aria-label="Vis ${ord.toLowerCase()} ${j + 1}${b.motiv || b.navn ? ': ' + esc(b.motiv || b.navn) : ''}"${j === i ? ' aria-current="true"' : ''}>${scene(b.scene, hash(el.id) + j)}</button>`).join('');
+      aria-label="Vis ${ord.toLowerCase()} ${j + 1}${b.motiv || b.navn ? ': ' + esc(b.motiv || b.navn) : ''}"${j === i ? ' aria-current="true"' : ''}>${scene(b.scene, bildeSeed(el, b, j))}</button>`).join('');
 }
 
 
@@ -1900,8 +2011,9 @@ function removeElement(id) {
   if (index === -1) return;
   const [el] = els.splice(index, 1);
 
-  const kanal = vizFor(id);
-  if (kanal) state.viz[kanal] = null;
+  const kanaler = vizKanaler(id);
+  kanaler.forEach((k) => { state.viz[k] = null; });
+  const kanal = kanaler[0];
   if (state.pushMenu === id) state.pushMenu = null;
   if (state.selectedId === id) {
     state.selectedId = null;
@@ -1930,19 +2042,40 @@ function moveElement(id, to) {
   render();
 }
 
-/* ---- Dra og slipp i elementlisten ----
-   Bare elementer som er lagt til i etterkant, kan dras, og bare innenfor
-   bolken de ligger i. Raden følger musen, og en lilla strek viser hvor den
-   havner. Med tastatur: piltast opp og ned på håndtaket. */
+/* ---- Dra og slipp ----
+   Brukes i elementlisten og i «Push ett bilde».
+   Elementlisten: bare elementer som er lagt til i etterkant, kan dras, og bare
+   innenfor bolken de ligger i. «Push ett bilde»: alle bildene i serien.
+   Raden følger musen, og en lilla strek viser hvor den havner.
+   Med tastatur: piltast opp og ned på håndtaket. */
 const drag = { start: null, active: false, index: 0, line: null, hindreKlikk: false };
 
 function dragDown(e) {
-  if (e.button !== 0 || state.pushMenu) return;
+  if (e.button !== 0) return;
+
+  // Et bilde i «Push ett bilde» (dra-symbolet eller bildet og teksten)
+  const bildeHandle = e.target.closest('[data-bilde-grip]') || e.target.closest('.bilde-push__info');
+  if (bildeHandle && state.pushMenu) {
+    const row = bildeHandle.closest('[data-bilde-row]');
+    e.preventDefault();
+    drag.start = {
+      kind: 'bilde', id: state.pushMenu, from: Number(row.dataset.bildeRow), row,
+      list: $('bilde-push-liste'), rows: '[data-bilde-row]', bounds: $('bilde-push-liste'), luft: 20,
+      x: e.clientX, y: e.clientY, scrollY: window.scrollY,
+    };
+    return;
+  }
+
+  if (state.pushMenu) return;
   const handle = e.target.closest('[data-grip]') || e.target.closest('.is-flyttbar .el__open');
   if (!handle) return;
   const row = handle.closest('[data-row]');
   if (handle.hasAttribute('data-grip')) e.preventDefault();
-  drag.start = { id: row.dataset.row, row, x: e.clientX, y: e.clientY, scrollY: window.scrollY };
+  drag.start = {
+    kind: 'el', id: row.dataset.row, row,
+    list: $('element-list'), rows: '[data-row]', bounds: $('element-list').closest('.panel'), luft: 40,
+    x: e.clientX, y: e.clientY, scrollY: window.scrollY,
+  };
 }
 
 function dragMove(e) {
@@ -1952,12 +2085,12 @@ function dragMove(e) {
     if (Math.hypot(e.clientX - st.x, e.clientY - st.y) < 6) return;
     drag.active = true;
     st.row.classList.add('is-dragging');
-    $('element-list').classList.add('is-sorting');
+    st.list.classList.add('is-sorting');
     document.body.classList.add('is-dragging-el');
     drag.line = document.createElement('div');
     drag.line.className = 'drop-line';
     drag.line.setAttribute('aria-hidden', 'true');
-    $('element-list').appendChild(drag.line);
+    st.list.appendChild(drag.line);
   }
   e.preventDefault();
 
@@ -1969,18 +2102,19 @@ function dragMove(e) {
   placeDropLine(e.clientX, e.clientY);
 }
 
-// Finner plassen under musen og flytter streken dit. Utenfor elementlisten
-// vises ingen strek, og slipper man der, blir elementet liggende.
+// Finner plassen under musen og flytter streken dit. Utenfor listen
+// vises ingen strek, og slipper man der, blir raden liggende.
 function placeDropLine(x, y) {
-  const list = $('element-list');
-  const panel = list.closest('.panel').getBoundingClientRect();
-  const inni = x >= panel.left && x <= panel.right && y >= panel.top - 40 && y <= panel.bottom + 40;
+  const st = drag.start;
+  const list = st.list;
+  const panel = st.bounds.getBoundingClientRect();
+  const inni = x >= panel.left && x <= panel.right && y >= panel.top - st.luft && y <= panel.bottom + st.luft;
   drag.line.hidden = !inni;
   if (!inni) {
     drag.index = null;
     return;
   }
-  const others = [...list.querySelectorAll('[data-row]')].filter((r) => r !== drag.start.row);
+  const others = [...list.querySelectorAll(st.rows)].filter((r) => r !== st.row);
   let index = others.findIndex((r) => {
     const box = r.getBoundingClientRect();
     return y < box.top + box.height / 2;
@@ -1988,10 +2122,12 @@ function placeDropLine(x, y) {
   if (index === -1) index = others.length;
   drag.index = index;
 
+  // Streken står midt i mellomrommet mellom radene
   const top = list.getBoundingClientRect().top;
+  const halv = (parseFloat(getComputedStyle(list).rowGap) || 8) / 2;
   let lineY = 0;
-  if (others.length && index < others.length) lineY = others[index].getBoundingClientRect().top - top - 4;
-  else if (others.length) lineY = others[others.length - 1].getBoundingClientRect().bottom - top + 4;
+  if (others.length && index < others.length) lineY = others[index].getBoundingClientRect().top - top - halv;
+  else if (others.length) lineY = others[others.length - 1].getBoundingClientRect().bottom - top + halv;
   drag.line.style.top = `${lineY}px`;
 }
 
@@ -2008,7 +2144,28 @@ function dragEnd(cancel) {
     render();
     return;
   }
-  moveElement(st.id, drag.index);
+  if (st.kind === 'bilde') moveBilde(st.id, st.from, drag.index);
+  else moveElement(st.id, drag.index);
+}
+
+// Flytter et bilde i en serie til en ny plass. Rekkefølgen gjelder også
+// bildeserien i preview. VIZ følger bildet, ikke plassen.
+function moveBilde(id, from, to) {
+  const found = findElement(id);
+  if (!found) return;
+  const el = found.el;
+  const vist = el.bilder[serieIndex(el)];
+  el.bilder.forEach((x, j) => { if (x.nr == null) x.nr = j; });
+  const [b] = el.bilder.splice(from, 1);
+  const index = clamp(to, 0, el.bilder.length);
+  el.bilder.splice(index, 0, b);
+  // Preview viser det samme bildet som før
+  if (state.selectedId === id) state.serieIndex = Math.max(0, el.bilder.indexOf(vist));
+  const navn = bildeNavn(b) || bildeOrd(el).toLowerCase();
+  setMsg(index === from
+    ? `${navn} ble liggende på samme plass.`
+    : `${navn} er flyttet til plass ${index + 1} av ${el.bilder.length} i ${elLabel(el)}.`);
+  render();
 }
 
 // Legger det sist fjernede elementet tilbake på samme plass
@@ -2075,14 +2232,29 @@ function focusMenu(where) {
 
 function openPushMenu(id, where) {
   state.pushMenu = id;
+  state.pushView = 'kanaler';
   render();
   focusMenu(where);
+}
+
+// Bytter mellom VIZ-valgene og «Push ett bilde» i den åpne menyen
+function setPushView(view) {
+  state.pushView = view;
+  render();
+  if (view === 'bilder') {
+    const first = document.querySelector('.push__menu [data-bilde-viz]');
+    if (first) first.focus();
+  } else {
+    const back = document.querySelector('.push__menu [data-push-view="bilder"]');
+    if (back) back.focus();
+  }
 }
 
 function closePushMenu(returnFocus) {
   const id = state.pushMenu;
   if (!id) return;
   state.pushMenu = null;
+  state.pushView = 'kanaler';
   render();
   if (returnFocus) document.querySelector(`[data-push="${id}"]`).focus();
 }
@@ -2099,24 +2271,46 @@ function pushTo(id, kanal) {
   } else if (kanal === forrige) {
     setMsg(`${elLabel(el)} ligger allerede klart på VIZ${kanal}.`);
   } else {
-    const fortrengt = state.viz[kanal] ? findElement(state.viz[kanal]) : null;
+    const fortrengt = state.viz[kanal] ? vizLabel(state.viz[kanal]) : '';
     if (forrige) state.viz[forrige] = null;
-    state.viz[kanal] = id;
-    setMsg(`${elLabel(el)} er klart på VIZ${kanal}.`
-      + (fortrengt ? ` ${elLabel(fortrengt.el)} ble tatt av.` : ''));
+    state.viz[kanal] = { id, bilde: null };
+    setMsg(`${elLabel(el)} er klart på VIZ${kanal}.` + (fortrengt ? ` ${fortrengt} ble tatt av.` : ''));
   }
 
   closePushMenu(true);
 }
 
-// Klikk på det lilla VIZ-merket på raden fjerner PUSH-en
-function unpush(id) {
-  const kanal = vizFor(id);
-  if (!kanal) return;
+// «Push ett bilde»: gjør ett bilde i serien klart på en kanal. Ligger bildet der
+// allerede, tas det av. Menyen blir stående åpen, så man kan pushe neste bilde.
+function pushBilde(id, index, kanal) {
   const { el } = findElement(id);
+  const b = el.bilder[index];
+  if (!b) return;
+  const navn = `${bildeOrd(el)} ${index + 1}${bildeNavn(b) ? ` (${bildeNavn(b)})` : ''}`;
+  const forrige = vizForBilde(b);
+
+  if (forrige === kanal) {
+    state.viz[kanal] = null;
+    setMsg(`${navn} er fjernet fra VIZ${kanal}.`);
+  } else {
+    const fortrengt = state.viz[kanal] ? vizLabel(state.viz[kanal]) : '';
+    if (forrige) state.viz[forrige] = null;
+    state.viz[kanal] = { id, bilde: b };
+    setMsg(`${navn} er klart på VIZ${kanal}.` + (fortrengt ? ` ${fortrengt} ble tatt av.` : ''));
+  }
+  render();
+}
+
+// Klikk på et lilla VIZ-merke på raden fjerner det som ligger på den kanalen
+function unpush(kanal) {
+  const entry = state.viz[kanal];
+  if (!entry) return;
+  const id = entry.id;
+  const label = vizLabel(entry);
   state.viz[kanal] = null;
   state.pushMenu = null;
-  setMsg(`${elLabel(el)} er fjernet fra VIZ${kanal}.`);
+  state.pushView = 'kanaler';
+  setMsg(`${label} er fjernet fra VIZ${kanal}.`);
   render();
   // Merket forsvinner, så fokus går til PUSH-knappen på samme rad
   const push = document.querySelector(`[data-push="${id}"]`);
@@ -2142,7 +2336,9 @@ function addBilde() {
   if (!sel) return;
   const bilder = sel.el.bilder;
   const forrige = bilder[bilder.length - 1];
+  const brukt = bilder.map((x, j) => (x.nr != null ? x.nr : j));
   bilder.push({
+    nr: brukt.length ? Math.max(...brukt) + 1 : 0,
     motiv: '',
     kreditering: forrige ? forrige.kreditering : 'Foto: ',
     scene: LANDSKAP[(bilder.length + hash(sel.el.id)) % LANDSKAP.length],
@@ -2155,7 +2351,9 @@ function addBilde() {
 function removeBilde(index) {
   const sel = selected();
   if (!sel || sel.el.bilder.length < 2) return;
-  sel.el.bilder.splice(index, 1);
+  const [fjernet] = sel.el.bilder.splice(index, 1);
+  const kanal = vizForBilde(fjernet);
+  if (kanal) state.viz[kanal] = null;
   state.serieIndex = clamp(state.serieIndex > index ? state.serieIndex - 1 : state.serieIndex, 0, sel.el.bilder.length - 1);
   render();
 
@@ -2239,6 +2437,17 @@ function bindEvents() {
       else openPushMenu(push.dataset.push, 'current');
       return;
     }
+    const view = e.target.closest('[data-push-view]');
+    if (view) {
+      setPushView(view.dataset.pushView);
+      return;
+    }
+    const bildeViz = e.target.closest('[data-bilde-viz]');
+    if (bildeViz) {
+      const [index, kanal] = bildeViz.dataset.bildeViz.split(':').map(Number);
+      pushBilde(state.pushMenu, index, kanal);
+      return;
+    }
     const item = e.target.closest('[data-viz]');
     if (item) {
       pushTo(state.pushMenu, Number(item.dataset.viz));
@@ -2246,7 +2455,7 @@ function bindEvents() {
     }
     const unviz = e.target.closest('[data-unviz]');
     if (unviz) {
-      unpush(unviz.dataset.unviz);
+      unpush(Number(unviz.dataset.unviz));
       return;
     }
     // Ett klikk (eller Enter/mellomrom) åpner elementet
@@ -2257,6 +2466,18 @@ function bindEvents() {
 
   // Tastatur i PUSH-menyen: piltaster, Home/End og Tab
   $('element-list').addEventListener('keydown', (e) => {
+    // Piltast opp og ned på dra-symbolet i «Push ett bilde» flytter bildet én plass
+    const bildeGrip = e.target.closest('[data-bilde-grip]');
+    if (bildeGrip && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
+      e.preventDefault();
+      const from = Number(bildeGrip.dataset.bildeGrip);
+      const to = clamp(from + (e.key === 'ArrowUp' ? -1 : 1), 0, findElement(state.pushMenu).el.bilder.length - 1);
+      moveBilde(state.pushMenu, from, to);
+      const ny = document.querySelector(`[data-bilde-grip="${to}"]`);
+      if (ny) ny.focus();
+      return;
+    }
+
     // Piltast opp og ned på håndtaket flytter elementet én plass
     const grip = e.target.closest('[data-grip]');
     if (grip && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
