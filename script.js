@@ -23,7 +23,7 @@
 // Typene 'bilder' (bildeserie) og 'rader' (sendestolpe) har egne felt.
 const F = (key, label, opts = {}) => ({ key, label, ...opts });
 
-const KONK_TEKST = 'Tagg @gmn i dine værbilder – vinn en GMN-kopp og et handlenett';
+const KONK_TEKST = 'Send inn ditt bilde på tv2.no/fotokonkurranse';
 const OPPSKRIFT_TEKST = 'Se dagens oppskrift på TV2.no/mat';
 const AUTO_HINT = 'Fylt ut automatisk. Kan endres.';
 
@@ -39,6 +39,7 @@ const STATUS_VALG = [
 
 // Elementtypene.
 //   fields: feltene i Rediger-modus
+//   lesbar: true  kan bare leses (ingen Rediger-modus, ligger ikke i paletten)
 //   ny(ctx): startverdier for et nytt element (ctx: id, time, index, bolker)
 //   tittel/meta: teksten i elementlisten
 const TYPES = {
@@ -104,12 +105,15 @@ const TYPES = {
     tittel: (el) => el.overskrift,
     meta: (el) => el.kilde,
   },
+  // Alle bidragene i en bolk samles i ett element som blas i som en bildeserie.
+  // Hvert bidrag i `bilder`: navn, tittel (bildetittel, kan mangle), sted, fylke og scene.
+  // Bidragene kommer fra fotokonkurransen og kan bare leses.
   fotokonk: {
-    label: 'Foto-konk', stage: 'Bidrag i fotokonkurransen',
-    fields: [F('brukernavn', 'Instagram-brukernavn'), F('sted', 'Sted'), F('konk', 'Konkurransetekst')],
-    ny: (ctx) => ({ brukernavn: '', sted: '', konk: KONK_TEKST, scene: pick(LANDSKAP, hash(ctx.id)) }),
-    tittel: (el) => (el.brukernavn ? '@' + el.brukernavn.replace(/^@/, '') : ''),
-    meta: (el) => el.sted,
+    label: 'Fotokonkurranse', stage: 'Bidrag i fotokonkurransen', lesbar: true,
+    fields: [F('overskrift', 'Overskrift'), F('konk', 'Konkurransetekst')],
+    ny: () => ({ overskrift: '', konk: KONK_TEKST, bilder: [] }),
+    tittel: (el) => el.overskrift,
+    meta: (el) => `${el.bilder.length} bidrag`,
   },
   ticker: {
     label: 'Ticker', stage: 'Ticker over kamerabilde',
@@ -150,7 +154,7 @@ const TYPES = {
 const GROUPS = [
   { key: 'supere',   navn: 'Supere',   typer: ['navnesuper', 'infosuper'] },
   { key: 'stolper',  navn: 'Stolper',  typer: ['infostolpe', 'oppskrift', 'sendestolpe'] },
-  { key: 'bilder',   navn: 'Bilder',   typer: ['stillbilde', 'bildeserie', 'faksimile', 'fotokonk'] },
+  { key: 'bilder',   navn: 'Bilder',   typer: ['stillbilde', 'bildeserie', 'faksimile'] },
   { key: 'overlegg', navn: 'Overlegg', typer: ['ticker', 'hashtag', 'fotokred', 'straks'] },
 ];
 
@@ -174,15 +178,18 @@ const CHECK_PATH = '<path d="M5 12.5l4.5 4.5L19 7.5"/>';
 const PLUS_PATH = '<path d="M12 5v14M5 12h14"/>';
 const CROSS_PATH = '<path d="M6 6l12 12M18 6 6 18"/>';
 const WARN_PATH = '<path d="M12 3 2 20h20z"/><path d="M12 10v4M12 17h.01"/>';
+const GRIP_PATH = '<path d="M9 6h.01M15 6h.01M9 12h.01M15 12h.01M9 18h.01M15 18h.01"/>';
 
-// Oppgavene på startsiden. `auto: true` betyr at oppgaven
-// blir ferdig av seg selv når alle bolkene er markert som klare.
+// Oppgavene på startsiden. `auto` betyr at oppgaven ikke kan hukes av for hånd.
+// Den blir ferdig av seg selv når alle bolkene er huket av:
+//   auto: 'script'    bolkene på Script-siden (state.scriptKlar)
+//   auto: 'kjoreplan' bolkene i spillelisten (bolk.klar)
 const TASKS = [
-  { key: 'script',    title: 'Lese script' },
-  { key: 'kjoreplan', title: 'Gå gjennom kjøreplan', auto: true },
+  { key: 'script',    title: 'Lese script', auto: 'script' },
+  { key: 'kjoreplan', title: 'Gå gjennom kjøreplan', auto: 'kjoreplan' },
   { key: 'supere',    title: 'Klargjøre navnesuper for gjester' },
   { key: 'fotokonk',  title: 'Sjekke bidrag i fotokonkurransen' },
-  { key: 'produsent', title: 'Avklare endringer med produsent' },
+  { key: 'produsent', title: 'Morgenmøte med produksjonen' },
   { key: 'test',      title: 'Prøvekjøre grafikk før sending' },
 ];
 
@@ -191,6 +198,7 @@ function lagKjoreplan() {
   const E = (id, type, felt = {}) => ({ id, type, ...TYPES[type].ny({ id }), ...felt });
   const R = (tittel, tid, status, scene = 'portrett') => ({ tittel, tid, status, scene });
   const B = (motiv, kreditering, scene) => ({ motiv, kreditering, scene });
+  const K = (navn, tittel, sted, fylke, scene) => ({ navn, tittel, sted, fylke, scene });
   const dato = datoTekst();
 
   return [
@@ -226,9 +234,11 @@ function lagKjoreplan() {
     { time: '07:25', title: 'Været og fotokonkurransen', klar: false, els: [
       E('e21', 'navnesuper', { navn: 'Hanne Lund', tittel: 'Meteorolog' }),
       E('e22', 'stillbilde', { motiv: 'Første snø på vidda', kreditering: 'Foto: Seerbilde', scene: 'sno' }),
-      E('e23', 'fotokonk', { brukernavn: 'morgenfugl_vestland', sted: 'Stryn, Vestland', scene: 'taake' }),
-      E('e24', 'fotokonk', { brukernavn: 'fjellgeita88', sted: 'Senja, Troms', scene: 'nordlys' }),
-      E('e25', 'fotokonk', { brukernavn: 'kari.ser.lyset', sted: 'Ringsaker, Innlandet', scene: 'host' }),
+      E('e23', 'fotokonk', { overskrift: 'Bidrag fra seerne', bilder: [
+        K('Ingrid Sæther', 'Tåkehav over vatnet', 'Stryn', 'Vestland', 'taake'),
+        K('Håkon Lie', '', 'Senja', 'Troms', 'nordlys'),
+        K('Kari Bjørnstad', 'Høstfarger i hagen', 'Ringsaker', 'Innlandet', 'host'),
+      ] }),
       E('e26', 'hashtag', { tekst: '#godmorgennorge' }),
     ] },
     { time: '07:38', title: 'Årets ildsjel', klar: false, els: [
@@ -275,10 +285,12 @@ function lagKjoreplan() {
       E('e65', 'fotokred', { navn: 'Ida Fjeld', scene: 'fjord' }),
     ] },
     { time: '08:35', title: 'Fotokonkurransen og avslutning', klar: false, els: [
-      E('e71', 'fotokonk', { brukernavn: 'havgapet', sted: 'Lofoten, Nordland', scene: 'fjord' }),
-      E('e72', 'fotokonk', { brukernavn: 'tante.berit.fotograferer', sted: 'Hamar, Innlandet', scene: 'taake' }),
-      E('e73', 'fotokonk', { brukernavn: 'per_ute', sted: 'Kragerø, Telemark', scene: 'host' }),
-      E('e74', 'fotokonk', { brukernavn: 'nordnorsk_morgen', sted: 'Alta, Finnmark', scene: 'nordlys' }),
+      E('e71', 'fotokonk', { overskrift: 'Ukens vinner', bilder: [
+        K('Mats Hagen', 'Morgen ved havgapet', 'Lofoten', 'Nordland', 'fjord'),
+        K('Berit Aune', '', 'Hamar', 'Innlandet', 'taake'),
+        K('Per Ulvestad', 'Stille sjø', 'Kragerø', 'Telemark', 'host'),
+        K('Siri Nordvik', 'Nordlys over Alta', 'Alta', 'Finnmark', 'nordlys'),
+      ] }),
       E('e75', 'sendestolpe', { rader: [
         R('Søvnforsker Lene Bakke', '08.05 (12.05)', 'sendt'),
         R('Regissør Nora Lindqvist', '08.20 (12.20)', 'sendt'),
@@ -387,7 +399,7 @@ function lagScript() {
         ['Hanne', 'Og på fjellet har det kommet snø. Dette bildet fikk vi fra en seer i morgentimene.'],
         ['Jonas', 'Apropos bilder: Dere har sendt inn mange fine bidrag til fotokonkurransen. Her er noen av dem.'],
         [null, 'Tre bidrag vises etter hverandre, ca. 15 sekunder hver.'],
-        ['Silje', 'Tagg bildene dine med @gmn, så kan du vinne en GMN-kopp og et handlenett.'],
+        ['Silje', 'Send inn ditt bilde på tv2.no/fotokonkurranse, så kan du vinne en GMN-kopp og et handlenett.'],
       ],
       guide: [
         ['Hanne Lund', [
@@ -401,9 +413,7 @@ function lagScript() {
         ['07:25:10', 'grafikk', 'Navnesuper på Hanne', 'e21'],
         ['07:28:30', 'grafikk', 'Stillbilde av snøen på vidda', 'e22'],
         ['07:31:00', 'studio', 'Overgang til fotokonkurransen'],
-        ['07:31:15', 'grafikk', 'Foto-konk, bidrag 1', 'e23'],
-        ['07:31:30', 'grafikk', 'Foto-konk, bidrag 2', 'e24'],
-        ['07:31:45', 'grafikk', 'Foto-konk, bidrag 3', 'e25'],
+        ['07:31:15', 'grafikk', 'Fotokonkurransen: tre bidrag, bla på tegn fra produsent', 'e23'],
         ['07:32:15', 'grafikk', 'Hashtag mens Silje ber seerne sende inn', 'e26'],
         ['07:35:00', 'ut', 'Hanne Lund'],
         ['07:37:30', 'pause', 'Reklame (0.30)'],
@@ -544,7 +554,7 @@ function lagScript() {
         ['Jonas', 'Det er snart slutt for i dag, men vi har mer på lager. Her er det som kommer.'],
         ['Silje', 'Nå skal vi kåre ukens vinner i fotokonkurransen. Det har kommet mange fine bidrag denne uka.'],
         [null, 'Fire bidrag vises etter hverandre. Vinneren vises sist.'],
-        ['Jonas', 'Og vinneren er … @nordnorsk_morgen fra Alta! For et nordlys. Gratulerer, du får en GMN-kopp og et handlenett i posten.'],
+        ['Jonas', 'Og vinneren er … Siri Nordvik fra Alta! For et nordlys. Gratulerer, du får en GMN-kopp og et handlenett i posten.'],
         ['Silje', 'Husk at du kan følge oss på Instagram.'],
         ['Silje', 'Det var alt for i dag. Takk for at du så på, og ha en fin dag!'],
         ['Jonas', 'Vi ses i morgen!'],
@@ -553,10 +563,7 @@ function lagScript() {
       tidslinje: [
         ['08:35:00', 'studio', 'Silje og Jonas i sofaen'],
         ['08:35:20', 'grafikk', 'Dagens sending: det som kommer', 'e75'],
-        ['08:40:00', 'grafikk', 'Foto-konk, bidrag 1', 'e71'],
-        ['08:40:15', 'grafikk', 'Foto-konk, bidrag 2', 'e72'],
-        ['08:40:30', 'grafikk', 'Foto-konk, bidrag 3', 'e73'],
-        ['08:40:45', 'grafikk', 'Foto-konk: vinneren', 'e74'],
+        ['08:40:00', 'grafikk', 'Fotokonkurransen: fire bidrag, vinneren vises sist', 'e71'],
         ['08:44:00', 'grafikk', 'Ticker: Følg oss på Instagram', 'e76'],
         ['08:48:00', 'grafikk', 'Navnesuper på Silje under avslutningen', 'e77'],
         ['08:49:30', 'innslag', 'Rulletekst (0.30)'],
@@ -567,6 +574,23 @@ function lagScript() {
 const SCRIPT = lagScript();
 const PROGRAMLEDERE = [['Silje Mo Aasen', 'Programleder'], ['Jonas Hovland', 'Programleder']];
 
+// Den som er pålogget. Fylles inn som grafikkavvikler i «Dagens info».
+const BRUKER = 'Maia';
+
+// «Dagens info» på startsiden. Vises når kjøreplanen er hentet. Oppdiktet.
+const DAGENS_INFO = {
+  produsent: 'Eirik Haugland',
+  vaktsjef: 'Ingrid Solvang',
+  beskjeder: [
+    'Straks-plakaten står til vignetten starter kl. 07.00.',
+    'Kjøkkenet rigges i reklamepausen før Bolk 4.',
+    'Vinneren i fotokonkurransen kåres i Bolk 7. Ikke vis vinnerbildet før.',
+  ],
+};
+
+// Nøkkelen i localStorage som husker at opplæringen er lukket
+const INTRO_KEY = 'converge-intro-lukket';
+
 
 /* ----------------------------------------------------------
    2. Tilstand
@@ -574,20 +598,27 @@ const PROGRAMLEDERE = [['Silje Mo Aasen', 'Programleder'], ['Jonas Hovland', 'Pr
 const state = {
   screen: 'start',        // 'start', 'script' eller 'list'
   scriptBolk: 0,          // bolken som vises på Script-siden
+  scriptKlar: SCRIPT.map(() => false),  // bolkene som er huket av på Script-siden
   pendingOpen: null,      // element som skal åpnes når kjøreplanen er hentet
   fetched: false,         // er kjøreplanen hentet?
   loading: false,         // holder vi på å hente?
   fetchedAt: null,
-  doneTasks: { script: true, supere: false, fotokonk: false, produsent: false, test: false },
+  doneTasks: { supere: false, fotokonk: false, produsent: false, test: false },
+  blockedTask: null,      // oppgave som ikke kan hukes av ennå (viser en melding)
   bolker: lagKjoreplan(),
   activeBolk: 0,          // indeks i state.bolker
   selectedId: null,       // id på elementet som er åpent i preview
+  draft: null,            // nytt element fra paletten som ikke er lagt i spillelisten ennå
   mode: 'preview',        // 'preview' eller 'edit'
-  serieIndex: 0,          // bildet som vises når en bildeserie er åpen
-  viz: { 1: null, 2: null, 3: null },  // id på elementet som er klart på hver VIZ-kanal
+  serieIndex: 0,          // bildet som vises når en bildeserie (eller fotokonkurransen) er åpen
+  // Det som er klart på hver VIZ-kanal: { id, bilde } der bilde er null (hele
+  // elementet) eller ett bilde i en bildeserie (selve bildeobjektet, så det
+  // følger med når rekkefølgen endres)
+  viz: { 1: null, 2: null, 3: null },
   pushMenu: null,         // id på elementet som har PUSH-menyen åpen
-  vizMsg: '',             // siste melding om VIZ (leses opp av skjermleser)
-  showNewNote: false,     // vis melding under «Nytt element»
+  pushView: 'kanaler',    // 'kanaler' (VIZ1–3) eller 'bilder' («Push ett bilde»)
+  msg: '',                // siste melding i elementlisten (leses opp av skjermleser)
+  undo: null,             // sist fjernede element { el, bolk, index }, for «Angre»
   nextId: 1,              // teller for nye elementer
 };
 
@@ -687,14 +718,9 @@ function bolkSlutt(index) {
   return neste ? neste.time : SENDING_SLUTT;
 }
 
-function minutter(fra, til) {
-  const m = (t) => { const [h, min] = t.split(':').map(Number); return h * 60 + min; };
-  return m(til) - m(fra);
-}
-
-function initialer(navn) {
-  const deler = navn.split(/\s+/).filter(Boolean);
-  return (deler[0][0] + (deler.length > 1 ? deler[deler.length - 1][0] : '')).toUpperCase();
+// «Stryn, Vestland»
+function stedTekst(el) {
+  return [el.sted, el.fylke].filter(Boolean).join(', ');
 }
 
 // Finner et element i hele kjøreplanen
@@ -706,16 +732,54 @@ function findElement(id) {
   return null;
 }
 
-// VIZ-kanalen elementet ligger klart på, eller null
+// VIZ-kanalen hele elementet ligger klart på, eller null
 const VIZ_KANALER = [1, 2, 3];
 function vizFor(id) {
-  return VIZ_KANALER.find((k) => state.viz[k] === id) || null;
+  return VIZ_KANALER.find((k) => state.viz[k] && state.viz[k].id === id && !state.viz[k].bilde) || null;
 }
 
-// Returnerer det valgte elementet med plassering, eller null
+// Alle kanalene der elementet eller et av bildene i det ligger
+function vizKanaler(id) {
+  return VIZ_KANALER.filter((k) => state.viz[k] && state.viz[k].id === id);
+}
+
+// Kanalen ett bilde i en serie ligger på, eller null
+function vizForBilde(bilde) {
+  return VIZ_KANALER.find((k) => state.viz[k] && state.viz[k].bilde === bilde) || null;
+}
+
+// Tallet plassholderbildet tegnes ut fra. Bildet beholder utseendet sitt når
+// rekkefølgen endres (nr settes første gang bildene flyttes, se moveBilde).
+function bildeSeed(el, b, i) {
+  return hash(el.id) + (b.nr != null ? b.nr : i);
+}
+
+// «Bilde» eller «Bidrag» (fotokonkurransen)
+function bildeOrd(el) {
+  return el.type === 'fotokonk' ? 'Bidrag' : 'Bilde';
+}
+
+// Navnet på et bilde i serien: motivet, eller navnet på den som sendte inn
+function bildeNavn(b) {
+  return b.motiv || b.navn || '';
+}
+
+// Teksten for det som ligger på en kanal, f.eks. «Bildeserie · Bilder fra premieren – bilde 2 av 5»
+function vizLabel(entry) {
+  const found = findElement(entry.id);
+  if (!found) return '';
+  const el = found.el;
+  if (!entry.bilde) return elLabel(el);
+  const i = el.bilder.indexOf(entry.bilde);
+  return `${elLabel(el)} – ${bildeOrd(el).toLowerCase()} ${i + 1} av ${el.bilder.length}`;
+}
+
+// Returnerer det valgte elementet med plassering, eller null.
+// Et nytt element fra paletten (state.draft) går foran og har ingen plass ennå.
 function selected() {
   if (!state.fetched) return null;
   const els = activeBolk().els;
+  if (state.draft) return { el: state.draft, index: -1, total: els.length, draft: true };
   const index = els.findIndex((el) => el.id === state.selectedId);
   return index === -1 ? null : { el: els[index], index, total: els.length };
 }
@@ -724,15 +788,16 @@ function serieIndex(el) {
   return clamp(state.serieIndex, 0, Math.max(el.bilder.length - 1, 0));
 }
 
-// Fremdrift: seks like deler. Fem oppgaver hukes av manuelt,
-// den sjette (kjøreplanen) fylles opp bolk for bolk.
+// Fremdrift: seks like deler. Fire oppgaver hukes av manuelt. «Lese script» og
+// «Gå gjennom kjøreplan» fylles opp bolk for bolk (Script-siden og spillelisten).
 function progress() {
   const total = state.bolker.length;
   const klar = state.bolker.filter((b) => b.klar).length;
+  const lest = state.scriptKlar.filter(Boolean).length;
   const manual = Object.values(state.doneTasks).filter(Boolean).length;
-  const pct = Math.round(((manual + klar / total) / TASKS.length) * 100);
-  const tasksDone = manual + (klar === total ? 1 : 0);
-  return { pct, klar, total, tasksDone };
+  const pct = Math.round(((manual + klar / total + lest / total) / TASKS.length) * 100);
+  const tasksDone = manual + (klar === total ? 1 : 0) + (lest === total ? 1 : 0);
+  return { pct, klar, lest, total, tasksDone, auto: { kjoreplan: klar, script: lest } };
 }
 
 function elTitle(el) {
@@ -756,8 +821,9 @@ function elLabel(el) {
 // Når innerHTML byttes ut, mister knappen fokus. Disse to
 // funksjonene husker hvilken knapp som hadde fokus og gir det tilbake,
 // slik at tastaturbrukere ikke mister plassen sin.
-const FOCUS_ATTRS = ['data-id', 'data-push', 'data-viz', 'data-bolk', 'data-script-bolk', 'data-goto',
-  'data-task', 'data-go', 'data-add', 'data-serie'];
+const FOCUS_ATTRS = ['data-id', 'data-push', 'data-viz', 'data-unviz', 'data-grip', 'data-push-view',
+  'data-bilde-viz', 'data-bilde-grip', 'data-bolk', 'data-klar',
+  'data-script-bolk', 'data-script-klar', 'data-goto', 'data-task', 'data-go', 'data-add', 'data-serie'];
 function rememberFocus() {
   const active = document.activeElement;
   if (!active) return null;
@@ -897,9 +963,21 @@ const GMN_G = '<svg class="g-logo" viewBox="0 0 100 100" aria-hidden="true" focu
 const TV2_LOGO = '<span class="g-tv2" aria-hidden="true"><span class="g-tv2__2">2</span><span class="g-tv2__sub">Direkte</span></span>';
 const IG_ICON = '<svg class="g-ig" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true" focusable="false"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.3" cy="6.7" r="1.2" fill="currentColor" stroke="none"/></svg>';
 
-// Kamerabilde (plassholder) bak supere og overlegg
-function kamera(person = true) {
-  return `<div class="g-kamera" aria-hidden="true">${person ? '<span class="g-kamera__kropp"></span><span class="g-kamera__hode"></span>' : ''}</div>`;
+// Kamerabilde (plassholder) bak supere, stolper og overlegg: soloppgang i gult
+// og oransje med åser i dis, som i God morgen Norge. TV 2-logoen står oppe til høyre.
+// Bare navnesuperen har en person i bildet (person = true).
+function kamera(person = false) {
+  return `
+    <div class="g-kamera" aria-hidden="true">
+      <svg class="g-kamera__land" viewBox="0 0 160 90" preserveAspectRatio="xMidYMax slice" focusable="false">
+        <path d="M0 58C18 50 30 54 46 48S78 38 98 45 136 40 160 47V90H0z" fill="#F7D3A0"/>
+        <path d="M0 66C22 58 44 64 66 58S114 54 160 62V90H0z" fill="#F4B47A"/>
+        <path d="M0 72C30 68 58 74 92 69S138 68 160 72V90H0z" fill="#FDEBD0" opacity=".85"/>
+        <path d="M0 80C34 76 70 82 108 78S146 78 160 80V90H0z" fill="#EF9A60"/>
+      </svg>
+      ${person ? '<span class="g-kamera__kropp"></span><span class="g-kamera__hode"></span>' : ''}
+    </div>
+    ${TV2_LOGO}`;
 }
 function pille(text, cls) {
   return `<span class="g-pille ${cls}">${text}</span>`;
@@ -923,7 +1001,7 @@ function bildeFlate(kind, seed, kreditering) {
 // innerHTML – eller [Feltnavn] når feltet er tomt.
 const STAGE = {
   navnesuper: (el, v) => `
-    ${kamera()}
+    ${kamera(true)}
     <div class="g-super">
       <span class="g-super__navn">${v('navn')}</span>
       <span class="g-super__tittel">${v('tittel')}</span>
@@ -985,7 +1063,7 @@ const STAGE = {
     if (!el.bilder.length) return '<div class="g-bg g-bg--varm"></div>';
     const i = serieIndex(el);
     const bilde = el.bilder[i];
-    return bildeFlate(bilde.scene, hash(el.id) + i, esc(bilde.kreditering || '[Kreditering]'));
+    return bildeFlate(bilde.scene, bildeSeed(el, bilde, i), esc(bilde.kreditering || '[Kreditering]'));
   },
 
   faksimile: (el, v) => {
@@ -1009,19 +1087,31 @@ const STAGE = {
       ${TV2_LOGO}`;
   },
 
-  fotokonk: (el, v) => `
+  // Bidraget som vises (blas som en bildeserie). Navnet vises som fotokreditering
+  // oppe til venstre, som på stillbilder. Under bildet: bildetittelen (hvis den
+  // finnes), så sted og fylke.
+  fotokonk: (el, v) => {
+    const i = serieIndex(el);
+    const b = el.bilder[i];
+    const kort = b ? `
+      <div class="g-konk">
+        <span class="g-konk__bilde">
+          ${scene(b.scene, bildeSeed(el, b, i))}
+          <span class="g-kreditering">Foto: ${esc(b.navn || '[Navn]')}</span>
+        </span>
+        <span class="g-konk__info">
+          ${b.tittel ? `<b class="g-konk__tittel">${esc(b.tittel)}</b>` : ''}
+          <span class="g-konk__sted">${esc(stedTekst(b)) || '[Sted]'}</span>
+        </span>
+      </div>` : '';
+    return `
     <div class="g-bg g-bg--kald"></div>
-    <div class="g-konk">
-      <span class="g-konk__bilde">${scene(el.scene, hash(el.id))}</span>
-      <span class="g-konk__info">
-        <span class="g-konk__bruker">${IG_ICON}<span>${el.brukernavn ? esc(el.brukernavn.replace(/^@/, '')) : v('brukernavn')}</span></span>
-        <b class="g-konk__sted">${v('sted')}</b>
-      </span>
-    </div>
+    ${kort}
     <span class="g-konk__tekst">${v('konk')}</span>
     ${hjorneLogo('g-hjorne--nv')}
     ${pille('#godmorgennorge', 'g-pille--nh')}
-    ${TV2_LOGO}`,
+    ${TV2_LOGO}`;
+  },
 
   ticker: (el, v) => {
     const insta = el.variant === 'instagram';
@@ -1057,7 +1147,7 @@ const STAGE = {
     <span class="g-fotokred">Foto <b>${v('navn')}</b></span>`,
 
   straks: (el, v) => `
-    ${kamera(false)}
+    ${kamera()}
     <div class="g-straks">
       <span class="g-straks__fane">${v('fane')}</span>
       <span class="g-straks__rad">
@@ -1099,48 +1189,126 @@ function setNavActive(btn, active) {
 }
 
 /* ---- Skjerm 1 ---- */
+
+// Hilsenen på startsiden følger klokken (lokal tid)
+function hilsen(date = new Date()) {
+  const t = date.getHours();
+  if (t >= 5 && t < 9) return 'God morgen';
+  if (t >= 9 && t < 15) return 'God dag';
+  if (t >= 15 && t < 18) return 'God ettermiddag';
+  if (t >= 18) return 'God kveld';
+  return 'Gå og legg deg';  // 00.00–04.59
+}
+
+function oppdaterHilsen() {
+  const tekst = `${hilsen()} ${BRUKER}`;
+  if ($('start-title').textContent !== tekst) $('start-title').textContent = tekst;
+}
+
+// Sjekker hilsenen på hvert helt minutt, så den skifter selv om siden står åpen
+function startHilsenKlokke() {
+  oppdaterHilsen();
+  const na = new Date();
+  setTimeout(startHilsenKlokke, (60 - na.getSeconds()) * 1000 - na.getMilliseconds() + 20);
+}
+
 function renderStart() {
   $('screen-start').hidden = state.screen !== 'start';
 
   const p = progress();
   $('progress-note').textContent =
-    `${p.tasksDone} av ${TASKS.length} oppgaver ferdig · ${p.klar} av ${p.total} bolker klare`;
+    `${p.tasksDone} av ${TASKS.length} oppgaver ferdig · ${p.lest} av ${p.total} bolker lest i scriptet · ${p.klar} av ${p.total} bolker klare i spillelisten`;
   $('cta-note').textContent = state.fetched
     ? `${p.total} bolker · ${p.klar} klare`
     : 'Kjøreplanen er ikke hentet ennå';
 
   $('task-list').innerHTML = TASKS.map((task) => taskCard(task, p)).join('');
+  $('dagens-info').innerHTML = dagensInfo();
 }
 
+// Et oppgavekort. Hele kortet kan klikkes (se bindEvents).
 function taskCard(task, p) {
-  const done = task.auto ? p.klar === p.total : !!state.doneTasks[task.key];
+  const klar = task.auto ? p.auto[task.auto] : 0;
+  const done = task.auto ? klar === p.total : !!state.doneTasks[task.key];
+  // Prøvde brukeren å huke av en oppgave som ikke kan hukes av ennå?
+  const blocked = task.auto && !done && state.blockedTask === task.key;
 
   let status;
-  if (task.auto) status = state.fetched ? `${p.klar} av ${p.total} bolker klare` : 'Kjøreplanen er ikke hentet ennå';
+  if (task.auto === 'kjoreplan') status = state.fetched ? `${klar} av ${p.total} bolker klare` : 'Kjøreplanen er ikke hentet ennå';
+  else if (task.auto === 'script') status = `${klar} av ${p.total} bolker lest`;
   else status = done ? 'Ferdig' : 'Ikke ferdig';
 
-  const ring = `<span class="check__ring">${done ? svgIcon(CHECK_PATH, 16, 3) : ''}</span>`;
-
-  // Kjøreplan-oppgaven hukes ikke av for hånd, den har en snarvei i stedet
-  const check = task.auto
-    ? `<span class="check" aria-hidden="true">${ring}</span>`
-    : `<button type="button" class="check" data-task="${task.key}" aria-pressed="${done}"
-         aria-label="${done ? 'Fjern avkrysning' : 'Marker som ferdig'}: ${esc(task.title)}">${ring}</button>`;
+  let check;
+  if (task.auto) {
+    // Ingen avkrysning, men en sirkel som fylles etter hvert som bolkene hukes av.
+    // Ingen bolker klare: ingen sirkel.
+    check = klar === 0 ? '' : `
+      <span class="task__fill" role="img" aria-label="${klar} av ${p.total} bolker">
+        <span class="task__fill-ring" style="--andel:${(klar / p.total) * 100}%">${done ? svgIcon(CHECK_PATH, 16, 3) : ''}</span>
+      </span>`;
+  } else {
+    check = `<button type="button" class="check" data-task="${task.key}" aria-pressed="${done}"
+       aria-label="${done ? 'Fjern avkrysning' : 'Marker som ferdig'}: ${esc(task.title)}">
+       <span class="check__ring">${done ? svgIcon(CHECK_PATH, 16, 3) : ''}</span></button>`;
+  }
+  const warn = blocked
+    ? `<span class="task__warn" id="task-msg-${task.key}">${svgIcon(WARN_PATH, 14, 2)} Gå gjennom alle bolkene</span>`
+    : '';
 
   // Snarveier fra oppgavekortene
   let shortcut = '';
-  if (task.auto) shortcut = '<button type="button" class="btn-outline" data-go="list">Åpne spillelisten</button>';
-  if (task.key === 'script') shortcut = '<button type="button" class="btn-outline" data-go="script">Åpne script</button>';
+  if (task.auto === 'kjoreplan') shortcut = '<button type="button" class="btn-outline" data-go="list">Åpne spillelisten</button>';
+  if (task.auto === 'script') shortcut = '<button type="button" class="btn-outline" data-go="script">Åpne script</button>';
 
   return `
-    <div class="card task${done ? ' is-done' : ''}">
+    <div class="card task${done ? ' is-done' : ''}${task.auto ? ' task--auto' : ''}" data-task-card="${task.key}">
       <div class="task__text">
         <span class="task__title">${esc(task.title)}</span>
         <span class="muted">${status}</span>
+        ${warn}
         ${shortcut}
       </div>
       ${check}
     </div>`;
+}
+
+// En bolk i bolkmenyen: knappen som åpner bolken, og en rund sjekkboks til høyre.
+// Brukes både i spillelisten og på Script-siden.
+function bolkItem(i, { active, klar, openAttr, checkAttr, checkLabel }) {
+  return `
+    <div class="bolk-item${active ? ' is-active' : ''}${klar ? ' is-klar' : ''}">
+      <button type="button" class="bolk-btn" ${openAttr}="${i}"${active ? ' aria-current="true"' : ''}>
+        <span class="bolk-btn__text">
+          <span class="bolk-btn__label">${bolkNavn(i)}</span>
+          <span class="bolk-btn__time">${state.bolker[i].time}</span>
+        </span>
+      </button>
+      <button type="button" class="bolk-check" ${checkAttr}="${i}" aria-pressed="${klar}" aria-label="${checkLabel}">
+        <span class="bolk-check__ring">${klar ? svgIcon(CHECK_PATH, 14, 3) : ''}</span>
+      </button>
+    </div>`;
+}
+
+// Generell info for dagen. Skjelett til kjøreplanen er hentet,
+// men grafikkavvikleren er den som er pålogget og vises med en gang.
+function dagensInfo() {
+  const hentet = state.fetched;
+  const skjelett = (bredder) => `<span class="sr-only">Ikke hentet</span>${bredder
+    .map((b) => `<span class="skjelett" style="width:${b}%" aria-hidden="true"></span>`).join('')}`;
+  const rad = (label, innhold) => `<div class="info-row"><dt>${label}</dt><dd>${innhold}</dd></div>`;
+
+  const programledere = PROGRAMLEDERE.map(([navn]) => esc(navn)).join('<br>');
+  const beskjeder = `<ul class="info-beskjeder">${DAGENS_INFO.beskjeder.map((b) => `<li>${esc(b)}</li>`).join('')}</ul>`;
+
+  return `
+    ${hentet ? '' : `<p class="info-card__msg">${svgIcon('<circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/>', 18, 2)} Dagens spilleliste må hentes før info vises.</p>`}
+    <dl class="info-list${hentet ? '' : ' is-skjelett'}">
+      ${rad('Produsent', hentet ? esc(DAGENS_INFO.produsent) : skjelett([55]))}
+      ${rad('Vaktsjef', hentet ? esc(DAGENS_INFO.vaktsjef) : skjelett([45]))}
+      ${rad('Grafikkavvikler', `${esc(BRUKER)} <span class="info-deg">Deg</span>`)}
+      ${rad('Programledere', hentet ? programledere : skjelett([60, 50]))}
+      ${rad('Hendelser og beskjeder', hentet ? beskjeder : skjelett([95, 80, 88]))}
+    </dl>`;
 }
 
 /* ---- Script ---- */
@@ -1158,19 +1326,16 @@ function renderScript() {
   $('script-sub').textContent = `${bolk.time}–${slutt} · ${bolk.title}`;
   $('script-info').textContent = `${state.bolker.length} bolker · ${state.bolker[0].time}–${bolkSlutt(last)}`;
 
-  $('script-menu').innerHTML = state.bolker.map((b, j) => {
-    const active = j === i;
-    return `
-      <button type="button" class="bolk-btn${active ? ' is-active' : ''}" data-script-bolk="${j}"${active ? ' aria-current="true"' : ''}>
-        <span class="bolk-btn__text">
-          <span class="bolk-btn__label">${bolkNavn(j)}</span>
-          <span class="bolk-btn__time">${b.time}</span>
-        </span>
-      </button>`;
-  }).join('');
+  // Sjekkboksene her styrer «Lese script» på startsiden
+  $('script-menu').innerHTML = state.bolker.map((b, j) => bolkItem(j, {
+    active: j === i,
+    klar: state.scriptKlar[j],
+    openAttr: 'data-script-bolk',
+    checkAttr: 'data-script-klar',
+    checkLabel: `${bolkNavn(j)} er lest`,
+  })).join('');
 
   $('script-content').innerHTML = `
-    ${scriptMed(bolk, slutt, script)}
     <div class="script-cols">
       <div class="script-col">
         ${scriptManus(script)}
@@ -1178,35 +1343,6 @@ function renderScript() {
       </div>
       ${scriptTidslinje(i, script)}
     </div>`;
-}
-
-// Klokkeslett og hvem som er med
-function scriptMed(bolk, slutt, script) {
-  const person = ([navn, rolle], pl) => `
-    <li class="person${pl ? ' person--pl' : ''}">
-      <span class="person__ini" aria-hidden="true">${esc(initialer(navn))}</span>
-      <span class="person__text"><b>${esc(navn)}</b><span>${esc(rolle)}</span></span>
-    </li>`;
-  const gjester = script.gjester.length
-    ? script.gjester.map((g) => person(g, false)).join('')
-    : '<li class="muted">Ingen gjester i denne bolken</li>';
-
-  return `
-    <section class="panel script-med" aria-label="Tid og medvirkende">
-      <dl class="script-tid">
-        <div><dt>Start</dt><dd>${bolk.time}</dd></div>
-        <div><dt>Slutt</dt><dd>${slutt}</dd></div>
-        <div><dt>Varighet</dt><dd>${minutter(bolk.time, slutt)} min</dd></div>
-      </dl>
-      <div class="script-folk">
-        <h2 class="script-label">Programledere</h2>
-        <ul class="person-liste">${PROGRAMLEDERE.map((p) => person(p, true)).join('')}</ul>
-      </div>
-      <div class="script-folk">
-        <h2 class="script-label">Gjester</h2>
-        <ul class="person-liste">${gjester}</ul>
-      </div>
-    </section>`;
 }
 
 // Replikkene med navnet på den som snakker. Regibeskjeder vises for seg.
@@ -1243,7 +1379,7 @@ function scriptTidslinje(i, script) {
     let link = '';
     const found = elId ? findElement(elId) : null;
     if (found) {
-      const viz = vizFor(elId);
+      const viz = vizKanaler(elId)[0];
       link = `
         <button type="button" class="tl__link" data-goto="${elId}">
           <span class="type-icon">${svgIcon(ICON_PATHS[found.el.type], 18)}</span>
@@ -1308,56 +1444,67 @@ function renderList() {
   }
   renderPalette();
   renderPreview();
-  renderKlar();
 }
 
+// Sjekkboksene her styrer «Gå gjennom kjøreplan» på startsiden
 function renderBolkMenu() {
-  $('bolk-menu').innerHTML = state.bolker.map((bolk, i) => {
-    const active = i === state.activeBolk;
-    const klarIcon = bolk.klar
-      ? `<span class="klar-dot" role="img" aria-label="Klar">${svgIcon(CHECK_PATH, 14, 3)}</span>`
-      : '';
-    return `
-      <button type="button" class="bolk-btn${active ? ' is-active' : ''}" data-bolk="${i}"${active ? ' aria-current="true"' : ''}>
-        <span class="bolk-btn__text">
-          <span class="bolk-btn__label">${bolkNavn(i)}</span>
-          <span class="bolk-btn__time">${bolk.time}</span>
-        </span>
-        ${klarIcon}
-      </button>`;
-  }).join('');
+  $('bolk-menu').innerHTML = state.bolker.map((bolk, i) => bolkItem(i, {
+    active: i === state.activeBolk,
+    klar: bolk.klar,
+    openAttr: 'data-bolk',
+    checkAttr: 'data-klar',
+    checkLabel: `${bolkNavn(i)} er klar`,
+  })).join('');
 }
 
 function renderElementList() {
   const els = activeBolk().els;
   $('el-count').textContent = `${els.length} ${els.length === 1 ? 'element' : 'elementer'}`;
 
-  $('element-list').innerHTML = els.map((el, i) => {
-    // Foto-konk-bidrag som står etter hverandre får en felles overskrift
-    let group = '';
-    const prev = els[i - 1];
-    if (el.type === 'fotokonk' && (!prev || prev.type !== 'fotokonk')) {
-      let count = 0;
-      while (els[i + count] && els[i + count].type === 'fotokonk') count++;
-      group = `<div class="el-group">Foto-konk · ${count} bidrag fra fotokonkurransen</div>`;
-    }
+  if (!els.length) {
+    $('element-list').innerHTML = '<p class="el-empty">Ingen elementer i bolken. Velg en type under Elementer for å lage et nytt.</p>';
+    renderViz();
+    return;
+  }
 
-    // Raden er en beholder med to separate knapper: én som åpner
-    // elementet og én for PUSH (en knapp kan ikke ligge i en annen knapp)
-    const isSelected = el.id === state.selectedId;
+  $('element-list').innerHTML = els.map((el) => {
+
+    // Raden er en beholder med separate knapper: én som åpner elementet,
+    // VIZ-merket (fjerner PUSH), PUSH og fjern (en knapp kan ikke ligge i en annen knapp)
+    const isSelected = !state.draft && el.id === state.selectedId;
     const viz = vizFor(el.id);
     const menuOpen = state.pushMenu === el.id;
-    return `${group}
-      <div class="el${isSelected ? ' is-selected' : ''}">
-        <button type="button" class="el__open" data-id="${el.id}"${isSelected ? ' aria-current="true"' : ''} title="Dobbeltklikk for å åpne">
-          <span class="type-icon">${svgIcon(ICON_PATHS[el.type])}</span>
+    // Ett lilla merke per kanal elementet (eller et bilde i det) ligger på
+    const merker = vizKanaler(el.id).map((k) => {
+      const b = state.viz[k].bilde;
+      const nr = b ? el.bilder.indexOf(b) + 1 : 0;
+      const hva = b ? `${bildeOrd(el).toLowerCase()} ${nr} i ` : '';
+      return `
+        <button type="button" class="viz-off" data-unviz="${k}" title="Fjern fra VIZ${k}"
+          aria-label="Klar på VIZ${k}: ${hva}${esc(elLabel(el))}. Fjern fra VIZ${k}">
+          <span class="viz-badge${b ? ' viz-badge--bilde' : ''}">VIZ${k}${b ? `<span class="viz-badge__bilde">${svgIcon(ICON_PATHS.stillbilde, 12, 2.4)}${nr}</span>` : ''}${svgIcon(CROSS_PATH, 12, 3)}</span>
+        </button>`;
+    }).join('');
+    const label = esc(elLabel(el));
+    // Elementer som er lagt til i etterkant, er merket «Ny» i stedet for typeikonet
+    // og kan dras til en ny plass i bolken (håndtaket står rett til venstre for PUSH).
+    // De slettes med «Slett element» i preview.
+    const ny = !!el.isNew;
+    return `
+      <div class="el${isSelected ? ' is-selected' : ''}${ny ? ' is-flyttbar' : ''}" data-row="${el.id}">
+        <button type="button" class="el__open" data-id="${el.id}"${isSelected ? ' aria-current="true"' : ''}>
+          ${ny
+            ? '<span class="type-icon type-icon--ny">Ny<span class="sr-only"> element</span></span>'
+            : `<span class="type-icon">${svgIcon(ICON_PATHS[el.type])}</span>`}
           <span class="el__text">
             <span class="el__title">${esc(elTitle(el) || 'Uten tittel')}</span>
             <span class="el__meta">${esc(metaText(el))}</span>
           </span>
-          ${el.isNew ? '<span class="badge">NY</span>' : ''}
-          ${viz ? `<span class="viz-badge"><span class="sr-only">Klar på </span>VIZ${viz}</span>` : ''}
         </button>
+        ${merker}
+        ${ny ? `
+        <button type="button" class="el__grip" data-grip="${el.id}" title="Dra for å flytte"
+          aria-label="Flytt ${label}. Bruk piltast opp og ned.">${svgIcon(GRIP_PATH, 20, 3)}</button>` : ''}
         <div class="push">
           <button type="button" class="push__btn" data-push="${el.id}" aria-haspopup="menu" aria-expanded="${menuOpen}"${menuOpen ? ` aria-controls="push-meny-${el.id}"` : ''}
             aria-label="PUSH til VIZ: ${esc(elLabel(el))}">
@@ -1368,19 +1515,33 @@ function renderElementList() {
       </div>`;
   }).join('');
 
+  holdMenyInnenfor();
   renderViz();
 }
 
-// Rullegardinmenyen bak PUSH: VIZ1–3, og «Fjern» hvis elementet ligger på en kanal
+// PUSH-menyen henger under PUSH-knappen. På smale skjermer flyttes den
+// sidelengs, så den ikke stikker utenfor skjermen.
+function holdMenyInnenfor() {
+  const menu = document.querySelector('.push__menu');
+  if (!menu) return;
+  const kant = 16;
+  const box = menu.getBoundingClientRect();
+  let flytt = 0;
+  if (box.left < kant) flytt = kant - box.left;
+  else if (box.right > window.innerWidth - kant) flytt = window.innerWidth - kant - box.right;
+  if (flytt) menu.style.right = `${parseFloat(getComputedStyle(menu).right) - flytt}px`;
+}
+
+// Rullegardinmenyen bak PUSH: VIZ1–3, «Push ett bilde» for bildeserier og
+// «Fjern» hvis elementet ligger på en kanal
 function pushMenu(el, current) {
+  if (state.pushView === 'bilder' && erSerie(el)) return bildePushMenu(el);
+
   const items = VIZ_KANALER.map((k) => {
-    const holderId = state.viz[k];
+    const entry = state.viz[k];
     let info = 'Ledig';
-    if (holderId === el.id) info = 'Dette elementet';
-    else if (holderId) {
-      const holder = findElement(holderId);
-      info = `Erstatter ${elLabel(holder.el)}`;
-    }
+    if (entry && entry.id === el.id && !entry.bilde) info = 'Dette elementet';
+    else if (entry) info = `Erstatter ${vizLabel(entry)}`;
     return `
       <button type="button" class="push__item" role="menuitemradio" aria-checked="${current === k}" data-viz="${k}" tabindex="-1">
         <span class="push__check">${current === k ? svgIcon(CHECK_PATH, 16, 2.5) : ''}</span>
@@ -1391,6 +1552,18 @@ function pushMenu(el, current) {
       </button>`;
   }).join('');
 
+  // Bildeserier (også fotokonkurransen) kan pushe ett og ett bilde
+  const ettBilde = erSerie(el) && el.bilder.length ? `
+    <div class="push__sep" role="separator"></div>
+    <button type="button" class="push__item" role="menuitem" aria-haspopup="true" data-push-view="bilder" tabindex="-1">
+      <span class="push__check">${svgIcon(ICON_PATHS.stillbilde, 16, 2)}</span>
+      <span class="push__text">
+        <span class="push__name">Push ett bilde</span>
+        <span class="push__info">${el.bilder.length} ${el.type === 'fotokonk' ? 'bidrag' : 'bilder'} i serien</span>
+      </span>
+      <span class="push__chevron">${svgIcon('<path d="M9 6l6 6-6 6"/>', 16, 2.2)}</span>
+    </button>` : '';
+
   const remove = current ? `
     <div class="push__sep" role="separator"></div>
     <button type="button" class="push__item" role="menuitem" data-viz="0" tabindex="-1">
@@ -1398,32 +1571,70 @@ function pushMenu(el, current) {
       <span class="push__text"><span class="push__name">Fjern fra VIZ${current}</span></span>
     </button>` : '';
 
-  return `<div class="push__menu" id="push-meny-${el.id}" role="menu" aria-label="Velg VIZ for ${esc(elLabel(el))}">${items}${remove}</div>`;
+  return `<div class="push__menu" id="push-meny-${el.id}" role="menu" aria-label="Velg VIZ for ${esc(elLabel(el))}">${items}${ettBilde}${remove}</div>`;
+}
+
+// «Push ett bilde»: alle bildene i serien. Hvert bilde kan pushes til VIZ1–3
+// for seg, og rekkefølgen endres med dra-symbolet (som i elementlisten).
+function bildePushMenu(el) {
+  const ord = bildeOrd(el);
+  const rader = el.bilder.map((b, i) => {
+    const kanal = vizForBilde(b);
+    const navn = esc(bildeNavn(b) || `${ord} ${i + 1}`);
+    const under = esc(b.kreditering || stedTekst(b) || '');
+    const knapper = VIZ_KANALER.map((k) => `
+      <button type="button" class="bilde-push__viz" data-bilde-viz="${i}:${k}" aria-pressed="${kanal === k}"
+        aria-label="VIZ${k}" title="${kanal === k ? `Fjern fra VIZ${k}` : `Push til VIZ${k}`}">VIZ${k}</button>`).join('');
+    return `
+      <li class="bilde-push__rad${kanal ? ' is-on' : ''}" data-bilde-row="${i}">
+        <span class="bilde-push__info">
+          <span class="bilde-push__thumb">${scene(b.scene, bildeSeed(el, b, i))}</span>
+          <span class="bilde-push__tekst"><b>${i + 1}. ${navn}</b>${under ? `<span>${under}</span>` : ''}</span>
+        </span>
+        <button type="button" class="el__grip" data-bilde-grip="${i}" title="Dra for å flytte"
+          aria-label="Flytt ${ord.toLowerCase()} ${i + 1}: ${navn}. Bruk piltast opp og ned.">${svgIcon(GRIP_PATH, 20, 3)}</button>
+        <span class="bilde-push__kanaler" role="group" aria-label="Push ${ord.toLowerCase()} ${i + 1}: ${navn}">${knapper}</span>
+      </li>`;
+  }).join('');
+  return `
+    <div class="push__menu push__menu--bilder" id="push-meny-${el.id}" role="dialog" aria-labelledby="bilde-push-tittel">
+      <div class="bilde-push__head">
+        <button type="button" class="bilde-push__tilbake" data-push-view="kanaler" aria-label="Tilbake til VIZ-valgene">
+          ${svgIcon('<path d="M15 6l-6 6 6 6"/>', 18, 2.2)}
+        </button>
+        <span class="bilde-push__tittel" id="bilde-push-tittel">Push ett bilde</span>
+      </div>
+      <p class="bilde-push__hint">Velg VIZ for hvert bilde. Dra for å endre rekkefølgen.</p>
+      <ol class="bilde-push__liste" id="bilde-push-liste">${rader}</ol>
+    </div>`;
 }
 
 // Oversikt over hva som ligger klart på hver VIZ-kanal
 function renderViz() {
   $('viz-strip').innerHTML = VIZ_KANALER.map((k) => {
-    const found = state.viz[k] ? findElement(state.viz[k]) : null;
+    const entry = state.viz[k];
+    const found = entry ? findElement(entry.id) : null;
     const where = found && found.bolk !== state.activeBolk ? ` (${bolkNavn(found.bolk)})` : '';
     return `
       <li class="viz-cell${found ? ' is-on' : ''}">
         <span class="viz-cell__name">VIZ${k}</span>
-        <span class="viz-cell__el">${found ? esc(elLabel(found.el)) + where : 'Ledig'}</span>
+        <span class="viz-cell__el">${found ? esc(vizLabel(entry)) + where : 'Ledig'}</span>
       </li>`;
   }).join('');
-  $('viz-msg').textContent = state.vizMsg;
+  $('list-msg').textContent = state.msg;
+  $('undo-btn').hidden = !state.undo;
 }
 
 function renderPalette() {
   const sel = selected();
+  const iPaletten = !!sel && GROUPS.some((g) => g.typer.includes(sel.el.type));
 
   $('palette-panel').classList.toggle('is-disabled', !state.fetched);
   $('palette-hint').textContent = !state.fetched
     ? 'Tilgjengelig når kjøreplanen er hentet'
-    : sel
-      ? `Gjenkjent type: ${TYPES[sel.el.type].label} · klikk en type for å legge til`
-      : 'Klikk en type for å legge den til i bolken';
+    : iPaletten
+      ? `Gjenkjent type: ${TYPES[sel.el.type].label} · klikk en type for å lage et nytt element`
+      : 'Klikk en type for å lage et nytt element';
 
   const button = (type) => {
     // Typen til det valgte elementet utheves («gjenkjennes»)
@@ -1431,7 +1642,7 @@ function renderPalette() {
     const label = TYPES[type].label;
     return `
       <button type="button" class="palette__btn${recognized ? ' is-recognized' : ''}" data-add="${type}"
-        aria-label="Legg til ${label} i bolken${recognized ? ' (type for valgt element)' : ''}"${state.fetched ? '' : ' disabled'}>
+        aria-label="Nytt element: ${label}${recognized ? ' (type for valgt element)' : ''}"${state.fetched ? '' : ' disabled'}>
         <span class="type-icon">${svgIcon(ICON_PATHS[type], 18)}</span>
         <span class="palette__label">${label}</span>
       </button>`;
@@ -1442,24 +1653,24 @@ function renderPalette() {
       <span class="palette__group-label" id="palett-${group.key}">${group.navn}</span>
       <div class="palette__items">${group.typer.map(button).join('')}</div>
     </div>`).join('');
-
-  $('new-element-btn').disabled = !state.fetched;
-  $('new-element-note').hidden = !state.showNewNote;
 }
 
 function renderPreview() {
   const sel = selected();
-  const editing = state.mode === 'edit' && !!sel;
+  // Fotokonkurransen kan bare leses, så den har ingen Rediger-modus
+  const lesbar = !!sel && !!TYPES[sel.el.type].lesbar;
+  const editing = state.mode === 'edit' && !!sel && !lesbar;
 
   $('preview-title').textContent = previewTitle(sel);
-  $('mode-edit').disabled = !sel;
+  $('mode-edit').disabled = !sel || lesbar;
+  $('mode-edit').title = lesbar ? 'Fotokonkurransen kan ikke redigeres' : '';
   $('mode-preview').disabled = !sel;
   $('mode-edit').setAttribute('aria-pressed', editing);
   $('mode-preview').setAttribute('aria-pressed', !editing);
 
   $('preview-empty').hidden = !!sel;
   $('preview-empty').textContent = state.fetched
-    ? 'Dobbeltklikk på et element i bolken for å se det her.'
+    ? 'Klikk på et element i bolken for å se det her.'
     : 'Hent kjøreplanen for å se elementene her.';
   $('preview').hidden = !sel;
   if (!sel) return;
@@ -1470,6 +1681,20 @@ function renderPreview() {
 
   renderStage();
   renderSerieNav();
+
+  // Et nytt element har ingen plass i bolken ennå. Da vises
+  // «Legg element til spilleliste» i stedet for pilene.
+  $('stepper').hidden = !!sel.draft;
+  $('draft-bar').hidden = !sel.draft;
+  // «Slett element» bare for elementer som er lagt til i etterkant
+  $('delete-row').hidden = !!sel.draft || !sel.el.isNew;
+  if (sel.draft) {
+    const etter = state.selectedId ? activeBolk().els.find((e) => e.id === state.selectedId) : null;
+    $('draft-note').textContent = etter
+      ? `Ikke lagt til ennå. Legges inn under ${elLabel(etter)} i ${bolkNavn(state.activeBolk)}.`
+      : `Ikke lagt til ennå. Legges inn nederst i ${bolkNavn(state.activeBolk)}.`;
+    return;
+  }
 
   // Bla mellom elementene i bolken
   $('prev-btn').disabled = sel.index === 0;
@@ -1526,7 +1751,7 @@ function bilderEditor(el) {
   const current = serieIndex(el);
   const items = el.bilder.map((b, i) => `
     <li class="bilde-rad${i === current ? ' is-current' : ''}" data-bilde="${i}">
-      <span class="bilde-rad__thumb">${scene(b.scene, hash(el.id) + i)}</span>
+      <span class="bilde-rad__thumb">${scene(b.scene, bildeSeed(el, b, i))}</span>
       <span class="bilde-rad__nr">Bilde ${i + 1}</span>
       <button type="button" class="icon-btn" data-action="fjern-bilde" data-index="${i}"
         aria-label="Fjern bilde ${i + 1}"${el.bilder.length < 2 ? ' disabled' : ''}>${svgIcon(CROSS_PATH, 18, 2)}</button>
@@ -1570,35 +1795,35 @@ function renderStage() {
   };
 
   $('stage').innerHTML = STAGE[el.type](el, v);
-  $('stage-note').textContent = `Forhåndsvisning: ${def.stage}. Bilder og logoer er plassholdere.`;
+  $('stage-note').textContent = `Forhåndsvisning: ${def.stage}. Bilder og logoer er plassholdere.`
+    + (def.lesbar ? ' Fotokonkurransen kan bare leses.' : '');
 }
 
-// Egen navigasjon for bildene i en bildeserie (ikke det samme som å bla mellom elementer)
+// Elementer som blas i som en serie: bildeserie og fotokonkurranse
+function erSerie(el) {
+  return Array.isArray(el.bilder);
+}
+
+// Egen navigasjon for bildene i en serie (ikke det samme som å bla mellom elementer)
 function renderSerieNav() {
   const sel = selected();
-  const show = !!sel && sel.el.type === 'bildeserie' && sel.el.bilder.length > 0;
+  const show = !!sel && erSerie(sel.el) && sel.el.bilder.length > 0;
   $('serie-nav').hidden = !show;
   if (!show) return;
 
   const el = sel.el;
   const i = serieIndex(el);
   const n = el.bilder.length;
-  $('serie-count').textContent = `Bilde ${i + 1} av ${n}`;
+  const ord = el.type === 'fotokonk' ? 'Bidrag' : 'Bilde';
+  $('serie-title').textContent = el.type === 'fotokonk' ? 'Bidragene i fotokonkurransen' : 'Bildene i serien';
+  $('serie-prev').setAttribute('aria-label', `Forrige ${ord.toLowerCase()}`);
+  $('serie-next').setAttribute('aria-label', `Neste ${ord.toLowerCase()}`);
+  $('serie-count').textContent = `${ord} ${i + 1} av ${n}`;
   $('serie-prev').disabled = i === 0;
   $('serie-next').disabled = i === n - 1;
   $('serie-thumbs').innerHTML = el.bilder.map((b, j) => `
     <button type="button" class="serie-thumb${j === i ? ' is-current' : ''}" data-serie="${j}"
-      aria-label="Vis bilde ${j + 1}${b.motiv ? ': ' + esc(b.motiv) : ''}"${j === i ? ' aria-current="true"' : ''}>${scene(b.scene, hash(el.id) + j)}</button>`).join('');
-}
-
-function renderKlar() {
-  const bolk = activeBolk();
-  $('klar-row').hidden = !state.fetched;
-  $('klar-btn').setAttribute('aria-pressed', bolk.klar);
-  $('klar-label').textContent = bolk.klar ? 'Bolken er klar' : 'Bolk klar';
-  $('klar-note').textContent = bolk.klar
-    ? `${bolkNavn(state.activeBolk)} er markert som klar. Klikk igjen for å angre.`
-    : '';
+      aria-label="Vis ${ord.toLowerCase()} ${j + 1}${b.motiv || b.navn ? ': ' + esc(b.motiv || b.navn) : ''}"${j === i ? ' aria-current="true"' : ''}>${scene(b.scene, bildeSeed(el, b, j))}</button>`).join('');
 }
 
 
@@ -1607,13 +1832,42 @@ function renderKlar() {
    ---------------------------------------------------------- */
 function goTo(screen) {
   state.screen = screen;
+  state.blockedTask = null;
   render();
   window.scrollTo(0, 0);
 }
 
 function toggleTask(key) {
+  const task = TASKS.find((t) => t.key === key);
+  if (task.auto) {
+    // Blir ferdig av seg selv når alle bolkene er huket av. Før det rister
+    // sirkelen (eller meldingen, hvis ingen bolker er klare) og brukeren
+    // får beskjed om hva som mangler.
+    const p = progress();
+    if (p.auto[task.auto] === p.total) return;
+    state.blockedTask = key;
+    render();
+    const card = document.querySelector(`[data-task-card="${key}"]`);
+    const ring = card && (card.querySelector('.task__fill-ring') || card.querySelector('.task__warn'));
+    if (ring) {
+      ring.classList.remove('is-shake');
+      void ring.offsetWidth;  // starter animasjonen på nytt ved gjentatte klikk
+      ring.classList.add('is-shake');
+      ring.addEventListener('animationend', () => ring.classList.remove('is-shake'), { once: true });
+    }
+    // Tøm først, så skjermleseren leser meldingen også neste gang
+    $('start-status').textContent = '';
+    setTimeout(() => { $('start-status').textContent = 'Gå gjennom alle bolkene'; }, 50);
+    return;
+  }
   state.doneTasks[key] = !state.doneTasks[key];
   render();
+}
+
+// Melding i elementlisten. `undo` gir en «Angre»-knapp.
+function setMsg(text, undo = null) {
+  state.msg = text;
+  state.undo = undo;
 }
 
 function fetchPlan() {
@@ -1650,8 +1904,8 @@ function openFromScript(id) {
   const found = findElement(id);
   if (!found) return;
   state.pushMenu = null;
-  state.vizMsg = '';
-  state.showNewNote = false;
+  state.draft = null;
+  setMsg('');
 
   if (!state.fetched) {
     state.pendingOpen = id;
@@ -1678,22 +1932,23 @@ function pickBolk(index) {
   state.mode = 'preview';
   state.serieIndex = 0;
   state.pushMenu = null;
-  state.vizMsg = '';
-  state.showNewNote = false;
+  state.draft = null;
+  setMsg('');
   render();
 }
 
+// Ett klikk åpner elementet i preview
 function openElement(id) {
-  if (state.selectedId !== id) state.serieIndex = 0;
+  if (state.selectedId !== id || state.draft) state.serieIndex = 0;
   state.selectedId = id;
+  state.draft = null;
   state.mode = 'preview';
-  state.showNewNote = false;
   render();
 }
 
 function step(direction) {
   const sel = selected();
-  if (!sel) return;
+  if (!sel || sel.draft) return;
   const next = activeBolk().els[sel.index + direction];
   if (next) {
     state.selectedId = next.id;
@@ -1702,20 +1957,15 @@ function step(direction) {
   }
 }
 
-function addElement(type) {
-  const sel = selected();
-  const els = activeBolk().els;
+// Klikk i paletten lager et nytt element og åpner det i Rediger-modus.
+// Det legges ikke i spillelisten før brukeren trykker «Legg element til spilleliste».
+function newDraft(type) {
   const id = `ny-${state.nextId++}`;
   const ctx = { id, time: activeBolk().time, index: state.activeBolk, bolker: state.bolker };
-  const el = { id, type, ...TYPES[type].ny(ctx), isNew: true };
-
-  // Legg det nye elementet rett under det valgte (ellers nederst)
-  els.splice(sel ? sel.index + 1 : els.length, 0, el);
-
-  state.selectedId = el.id;
+  state.draft = { id, type, ...TYPES[type].ny(ctx), isNew: true };
   state.mode = 'edit';
   state.serieIndex = 0;
-  state.showNewNote = false;
+  state.pushMenu = null;
   render();
 
   // Fokus til første felt. Er det fylt ut fra før (f.eks. «#godmorgennorge»),
@@ -1725,6 +1975,207 @@ function addElement(type) {
     firstField.focus();
     if (firstField.select && firstField.value) firstField.select();
   }
+}
+
+// Legger det nye elementet rett under det valgte (ellers nederst i bolken)
+function addDraft() {
+  const el = state.draft;
+  if (!el) return;
+  const els = activeBolk().els;
+  const after = els.findIndex((e) => e.id === state.selectedId);
+  els.splice(after === -1 ? els.length : after + 1, 0, el);
+
+  state.draft = null;
+  state.selectedId = el.id;
+  state.mode = 'preview';
+  setMsg(`${elLabel(el)} er lagt til i ${bolkNavn(state.activeBolk)}.`);
+  render();
+  focusElementRow(el.id);
+}
+
+// Forkaster det nye elementet. Det som var åpent før, vises igjen.
+function cancelDraft() {
+  if (!state.draft) return;
+  state.draft = null;
+  state.mode = 'preview';
+  state.serieIndex = 0;
+  render();
+  if (state.selectedId) focusElementRow(state.selectedId);
+}
+
+// Sletter et nytt element fra bolken («Slett element» i preview).
+// Ligger det på en VIZ-kanal, tas det av.
+function removeElement(id) {
+  const els = activeBolk().els;
+  const index = els.findIndex((e) => e.id === id);
+  if (index === -1) return;
+  const [el] = els.splice(index, 1);
+
+  const kanaler = vizKanaler(id);
+  kanaler.forEach((k) => { state.viz[k] = null; });
+  const kanal = kanaler[0];
+  if (state.pushMenu === id) state.pushMenu = null;
+  if (state.selectedId === id) {
+    state.selectedId = null;
+    state.mode = 'preview';
+    state.serieIndex = 0;
+  }
+  setMsg(`${elLabel(el)} er slettet fra ${bolkNavn(state.activeBolk)}.`
+    + (kanal ? ` Det ble også tatt av VIZ${kanal}.` : ''), { el, bolk: state.activeBolk, index });
+  render();
+
+  // Slett-knappen forsvinner, så fokus går til «Angre»
+  $('undo-btn').focus();
+}
+
+// Flytter et element til en ny plass i bolken (indeks blant de andre elementene)
+function moveElement(id, to) {
+  const els = activeBolk().els;
+  const from = els.findIndex((e) => e.id === id);
+  if (from === -1) return;
+  const [el] = els.splice(from, 1);
+  const index = clamp(to, 0, els.length);
+  els.splice(index, 0, el);
+  setMsg(index === from
+    ? `${elLabel(el)} ble liggende på samme plass.`
+    : `${elLabel(el)} er flyttet til plass ${index + 1} av ${els.length} i ${bolkNavn(state.activeBolk)}.`);
+  render();
+}
+
+/* ---- Dra og slipp ----
+   Brukes i elementlisten og i «Push ett bilde».
+   Elementlisten: bare elementer som er lagt til i etterkant, kan dras, og bare
+   innenfor bolken de ligger i. «Push ett bilde»: alle bildene i serien.
+   Raden følger musen, og en lilla strek viser hvor den havner.
+   Med tastatur: piltast opp og ned på håndtaket. */
+const drag = { start: null, active: false, index: 0, line: null, hindreKlikk: false };
+
+function dragDown(e) {
+  if (e.button !== 0) return;
+
+  // Et bilde i «Push ett bilde» (dra-symbolet eller bildet og teksten)
+  const bildeHandle = e.target.closest('[data-bilde-grip]') || e.target.closest('.bilde-push__info');
+  if (bildeHandle && state.pushMenu) {
+    const row = bildeHandle.closest('[data-bilde-row]');
+    e.preventDefault();
+    drag.start = {
+      kind: 'bilde', id: state.pushMenu, from: Number(row.dataset.bildeRow), row,
+      list: $('bilde-push-liste'), rows: '[data-bilde-row]', bounds: $('bilde-push-liste'), luft: 20,
+      x: e.clientX, y: e.clientY, scrollY: window.scrollY,
+    };
+    return;
+  }
+
+  if (state.pushMenu) return;
+  const handle = e.target.closest('[data-grip]') || e.target.closest('.is-flyttbar .el__open');
+  if (!handle) return;
+  const row = handle.closest('[data-row]');
+  if (handle.hasAttribute('data-grip')) e.preventDefault();
+  drag.start = {
+    kind: 'el', id: row.dataset.row, row,
+    list: $('element-list'), rows: '[data-row]', bounds: $('element-list').closest('.panel'), luft: 40,
+    x: e.clientX, y: e.clientY, scrollY: window.scrollY,
+  };
+}
+
+function dragMove(e) {
+  const st = drag.start;
+  if (!st) return;
+  if (!drag.active) {
+    if (Math.hypot(e.clientX - st.x, e.clientY - st.y) < 6) return;
+    drag.active = true;
+    st.row.classList.add('is-dragging');
+    st.list.classList.add('is-sorting');
+    document.body.classList.add('is-dragging-el');
+    drag.line = document.createElement('div');
+    drag.line.className = 'drop-line';
+    drag.line.setAttribute('aria-hidden', 'true');
+    st.list.appendChild(drag.line);
+  }
+  e.preventDefault();
+
+  // Rull siden når man drar nær kanten
+  if (e.clientY < 60) window.scrollBy(0, -12);
+  else if (e.clientY > window.innerHeight - 60) window.scrollBy(0, 12);
+
+  st.row.style.transform = `translateY(${e.clientY - st.y + (window.scrollY - st.scrollY)}px)`;
+  placeDropLine(e.clientX, e.clientY);
+}
+
+// Finner plassen under musen og flytter streken dit. Utenfor listen
+// vises ingen strek, og slipper man der, blir raden liggende.
+function placeDropLine(x, y) {
+  const st = drag.start;
+  const list = st.list;
+  const panel = st.bounds.getBoundingClientRect();
+  const inni = x >= panel.left && x <= panel.right && y >= panel.top - st.luft && y <= panel.bottom + st.luft;
+  drag.line.hidden = !inni;
+  if (!inni) {
+    drag.index = null;
+    return;
+  }
+  const others = [...list.querySelectorAll(st.rows)].filter((r) => r !== st.row);
+  let index = others.findIndex((r) => {
+    const box = r.getBoundingClientRect();
+    return y < box.top + box.height / 2;
+  });
+  if (index === -1) index = others.length;
+  drag.index = index;
+
+  // Streken står midt i mellomrommet mellom radene
+  const top = list.getBoundingClientRect().top;
+  const halv = (parseFloat(getComputedStyle(list).rowGap) || 8) / 2;
+  let lineY = 0;
+  if (others.length && index < others.length) lineY = others[index].getBoundingClientRect().top - top - halv;
+  else if (others.length) lineY = others[others.length - 1].getBoundingClientRect().bottom - top + halv;
+  drag.line.style.top = `${lineY}px`;
+}
+
+function dragEnd(cancel) {
+  const st = drag.start;
+  drag.start = null;
+  if (!st || !drag.active) return;
+  drag.active = false;
+  document.body.classList.remove('is-dragging-el');
+  // Klikket som kommer etter at man slipper, skal ikke åpne elementet
+  drag.hindreKlikk = true;
+  setTimeout(() => { drag.hindreKlikk = false; }, 0);
+  if (cancel || drag.index === null) {
+    render();
+    return;
+  }
+  if (st.kind === 'bilde') moveBilde(st.id, st.from, drag.index);
+  else moveElement(st.id, drag.index);
+}
+
+// Flytter et bilde i en serie til en ny plass. Rekkefølgen gjelder også
+// bildeserien i preview. VIZ følger bildet, ikke plassen.
+function moveBilde(id, from, to) {
+  const found = findElement(id);
+  if (!found) return;
+  const el = found.el;
+  const vist = el.bilder[serieIndex(el)];
+  el.bilder.forEach((x, j) => { if (x.nr == null) x.nr = j; });
+  const [b] = el.bilder.splice(from, 1);
+  const index = clamp(to, 0, el.bilder.length);
+  el.bilder.splice(index, 0, b);
+  // Preview viser det samme bildet som før
+  if (state.selectedId === id) state.serieIndex = Math.max(0, el.bilder.indexOf(vist));
+  const navn = bildeNavn(b) || bildeOrd(el).toLowerCase();
+  setMsg(index === from
+    ? `${navn} ble liggende på samme plass.`
+    : `${navn} er flyttet til plass ${index + 1} av ${el.bilder.length} i ${elLabel(el)}.`);
+  render();
+}
+
+// Legger det sist fjernede elementet tilbake på samme plass
+function undoRemove() {
+  const u = state.undo;
+  if (!u) return;
+  state.bolker[u.bolk].els.splice(u.index, 0, u.el);
+  setMsg(`${elLabel(u.el)} er lagt tilbake.`);
+  render();
+  focusElementRow(u.el.id);
 }
 
 function updateField(path, value) {
@@ -1753,9 +2204,16 @@ function setMode(mode) {
   render();
 }
 
-function toggleKlar() {
-  const bolk = activeBolk();
+// Sjekkboksen på en bolk i spillelisten. Styrer «Gå gjennom kjøreplan».
+function toggleKlar(index) {
+  const bolk = state.bolker[index];
   bolk.klar = !bolk.klar;
+  render();
+}
+
+// Sjekkboksen på en bolk på Script-siden. Styrer «Lese script».
+function toggleScriptKlar(index) {
+  state.scriptKlar[index] = !state.scriptKlar[index];
   render();
 }
 
@@ -1774,14 +2232,29 @@ function focusMenu(where) {
 
 function openPushMenu(id, where) {
   state.pushMenu = id;
+  state.pushView = 'kanaler';
   render();
   focusMenu(where);
+}
+
+// Bytter mellom VIZ-valgene og «Push ett bilde» i den åpne menyen
+function setPushView(view) {
+  state.pushView = view;
+  render();
+  if (view === 'bilder') {
+    const first = document.querySelector('.push__menu [data-bilde-viz]');
+    if (first) first.focus();
+  } else {
+    const back = document.querySelector('.push__menu [data-push-view="bilder"]');
+    if (back) back.focus();
+  }
 }
 
 function closePushMenu(returnFocus) {
   const id = state.pushMenu;
   if (!id) return;
   state.pushMenu = null;
+  state.pushView = 'kanaler';
   render();
   if (returnFocus) document.querySelector(`[data-push="${id}"]`).focus();
 }
@@ -1794,24 +2267,60 @@ function pushTo(id, kanal) {
 
   if (kanal === 0) {
     state.viz[forrige] = null;
-    state.vizMsg = `${elLabel(el)} er fjernet fra VIZ${forrige}.`;
+    setMsg(`${elLabel(el)} er fjernet fra VIZ${forrige}.`);
   } else if (kanal === forrige) {
-    state.vizMsg = `${elLabel(el)} ligger allerede klart på VIZ${kanal}.`;
+    setMsg(`${elLabel(el)} ligger allerede klart på VIZ${kanal}.`);
   } else {
-    const fortrengt = state.viz[kanal] ? findElement(state.viz[kanal]) : null;
+    const fortrengt = state.viz[kanal] ? vizLabel(state.viz[kanal]) : '';
     if (forrige) state.viz[forrige] = null;
-    state.viz[kanal] = id;
-    state.vizMsg = `${elLabel(el)} er klart på VIZ${kanal}.`
-      + (fortrengt ? ` ${elLabel(fortrengt.el)} ble tatt av.` : '');
+    state.viz[kanal] = { id, bilde: null };
+    setMsg(`${elLabel(el)} er klart på VIZ${kanal}.` + (fortrengt ? ` ${fortrengt} ble tatt av.` : ''));
   }
 
   closePushMenu(true);
 }
 
+// «Push ett bilde»: gjør ett bilde i serien klart på en kanal. Ligger bildet der
+// allerede, tas det av. Menyen blir stående åpen, så man kan pushe neste bilde.
+function pushBilde(id, index, kanal) {
+  const { el } = findElement(id);
+  const b = el.bilder[index];
+  if (!b) return;
+  const navn = `${bildeOrd(el)} ${index + 1}${bildeNavn(b) ? ` (${bildeNavn(b)})` : ''}`;
+  const forrige = vizForBilde(b);
+
+  if (forrige === kanal) {
+    state.viz[kanal] = null;
+    setMsg(`${navn} er fjernet fra VIZ${kanal}.`);
+  } else {
+    const fortrengt = state.viz[kanal] ? vizLabel(state.viz[kanal]) : '';
+    if (forrige) state.viz[forrige] = null;
+    state.viz[kanal] = { id, bilde: b };
+    setMsg(`${navn} er klart på VIZ${kanal}.` + (fortrengt ? ` ${fortrengt} ble tatt av.` : ''));
+  }
+  render();
+}
+
+// Klikk på et lilla VIZ-merke på raden fjerner det som ligger på den kanalen
+function unpush(kanal) {
+  const entry = state.viz[kanal];
+  if (!entry) return;
+  const id = entry.id;
+  const label = vizLabel(entry);
+  state.viz[kanal] = null;
+  state.pushMenu = null;
+  state.pushView = 'kanaler';
+  setMsg(`${label} er fjernet fra VIZ${kanal}.`);
+  render();
+  // Merket forsvinner, så fokus går til PUSH-knappen på samme rad
+  const push = document.querySelector(`[data-push="${id}"]`);
+  if (push) push.focus();
+}
+
 /* ---- Bildeserie ---- */
 function setSerie(index) {
   const sel = selected();
-  if (!sel || sel.el.type !== 'bildeserie') return;
+  if (!sel || !erSerie(sel.el)) return;
   state.serieIndex = clamp(index, 0, sel.el.bilder.length - 1);
   render();
 
@@ -1827,7 +2336,9 @@ function addBilde() {
   if (!sel) return;
   const bilder = sel.el.bilder;
   const forrige = bilder[bilder.length - 1];
+  const brukt = bilder.map((x, j) => (x.nr != null ? x.nr : j));
   bilder.push({
+    nr: brukt.length ? Math.max(...brukt) + 1 : 0,
     motiv: '',
     kreditering: forrige ? forrige.kreditering : 'Foto: ',
     scene: LANDSKAP[(bilder.length + hash(sel.el.id)) % LANDSKAP.length],
@@ -1840,7 +2351,9 @@ function addBilde() {
 function removeBilde(index) {
   const sel = selected();
   if (!sel || sel.el.bilder.length < 2) return;
-  sel.el.bilder.splice(index, 1);
+  const [fjernet] = sel.el.bilder.splice(index, 1);
+  const kanal = vizForBilde(fjernet);
+  if (kanal) state.viz[kanal] = null;
   state.serieIndex = clamp(state.serieIndex > index ? state.serieIndex - 1 : state.serieIndex, 0, sel.el.bilder.length - 1);
   render();
 
@@ -1873,13 +2386,22 @@ function bindEvents() {
   $('cta-list').addEventListener('click', () => goTo('list'));
 
   $('task-list').addEventListener('click', (e) => {
-    const check = e.target.closest('[data-task]');
-    if (check) toggleTask(check.dataset.task);
+    // Snarveiene går foran. Ellers huker et klikk hvor som helst på kortet av oppgaven.
     const go = e.target.closest('[data-go]');
-    if (go) goTo(go.dataset.go);
+    if (go) {
+      goTo(go.dataset.go);
+      return;
+    }
+    const card = e.target.closest('[data-task-card]');
+    if (card) toggleTask(card.dataset.taskCard);
   });
 
   $('script-menu').addEventListener('click', (e) => {
+    const check = e.target.closest('[data-script-klar]');
+    if (check) {
+      toggleScriptKlar(Number(check.dataset.scriptKlar));
+      return;
+    }
     const btn = e.target.closest('[data-script-bolk]');
     if (btn) pickScriptBolk(Number(btn.dataset.scriptBolk));
   });
@@ -1891,16 +2413,23 @@ function bindEvents() {
   $('fetch-btn').addEventListener('click', fetchPlan);
 
   $('bolk-menu').addEventListener('click', (e) => {
+    const check = e.target.closest('[data-klar]');
+    if (check) {
+      toggleKlar(Number(check.dataset.klar));
+      return;
+    }
     const btn = e.target.closest('[data-bolk]');
     if (btn) pickBolk(Number(btn.dataset.bolk));
   });
 
-  // Dobbeltklikk åpner et element
-  $('element-list').addEventListener('dblclick', (e) => {
-    const btn = e.target.closest('[data-id]');
-    if (btn) openElement(btn.dataset.id);
-  });
+  // Dra og slipp (se dragDown og dragMove)
+  $('element-list').addEventListener('pointerdown', dragDown);
+  document.addEventListener('pointermove', dragMove);
+  document.addEventListener('pointerup', () => dragEnd(false));
+  document.addEventListener('pointercancel', () => dragEnd(true));
+
   $('element-list').addEventListener('click', (e) => {
+    if (drag.hindreKlikk) return;
     // PUSH-knappen åpner og lukker menyen, men åpner ikke elementet
     const push = e.target.closest('[data-push]');
     if (push) {
@@ -1908,18 +2437,56 @@ function bindEvents() {
       else openPushMenu(push.dataset.push, 'current');
       return;
     }
+    const view = e.target.closest('[data-push-view]');
+    if (view) {
+      setPushView(view.dataset.pushView);
+      return;
+    }
+    const bildeViz = e.target.closest('[data-bilde-viz]');
+    if (bildeViz) {
+      const [index, kanal] = bildeViz.dataset.bildeViz.split(':').map(Number);
+      pushBilde(state.pushMenu, index, kanal);
+      return;
+    }
     const item = e.target.closest('[data-viz]');
     if (item) {
       pushTo(state.pushMenu, Number(item.dataset.viz));
       return;
     }
-    // Tastatur: Enter/mellomrom gir et «click» med detail 0
+    const unviz = e.target.closest('[data-unviz]');
+    if (unviz) {
+      unpush(Number(unviz.dataset.unviz));
+      return;
+    }
+    // Ett klikk (eller Enter/mellomrom) åpner elementet
     const btn = e.target.closest('[data-id]');
-    if (btn && e.detail === 0) openElement(btn.dataset.id);
+    if (btn) openElement(btn.dataset.id);
   });
+  $('undo-btn').addEventListener('click', undoRemove);
 
   // Tastatur i PUSH-menyen: piltaster, Home/End og Tab
   $('element-list').addEventListener('keydown', (e) => {
+    // Piltast opp og ned på dra-symbolet i «Push ett bilde» flytter bildet én plass
+    const bildeGrip = e.target.closest('[data-bilde-grip]');
+    if (bildeGrip && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
+      e.preventDefault();
+      const from = Number(bildeGrip.dataset.bildeGrip);
+      const to = clamp(from + (e.key === 'ArrowUp' ? -1 : 1), 0, findElement(state.pushMenu).el.bilder.length - 1);
+      moveBilde(state.pushMenu, from, to);
+      const ny = document.querySelector(`[data-bilde-grip="${to}"]`);
+      if (ny) ny.focus();
+      return;
+    }
+
+    // Piltast opp og ned på håndtaket flytter elementet én plass
+    const grip = e.target.closest('[data-grip]');
+    if (grip && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
+      e.preventDefault();
+      const id = grip.dataset.grip;
+      const from = activeBolk().els.findIndex((el) => el.id === id);
+      moveElement(id, from + (e.key === 'ArrowUp' ? -1 : 1));
+      return;
+    }
     const push = e.target.closest('[data-push]');
     if (push && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
       e.preventDefault();
@@ -1940,6 +2507,11 @@ function bindEvents() {
 
   // Esc eller klikk utenfor lukker PUSH-menyen
   document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && drag.active) {
+      e.preventDefault();
+      dragEnd(true);
+      return;
+    }
     if (e.key === 'Escape' && state.pushMenu) {
       e.preventDefault();
       closePushMenu(true);
@@ -1951,13 +2523,14 @@ function bindEvents() {
 
   $('palette').addEventListener('click', (e) => {
     const btn = e.target.closest('[data-add]');
-    if (btn && !btn.disabled) addElement(btn.dataset.add);
+    if (btn && !btn.disabled) newDraft(btn.dataset.add);
   });
-
-  $('new-element-btn').addEventListener('click', () => {
-    state.showNewNote = !state.showNewNote;
-    render();
+  $('draft-add').addEventListener('click', addDraft);
+  $('delete-btn').addEventListener('click', () => {
+    const sel = selected();
+    if (sel && !sel.draft && sel.el.isNew) removeElement(sel.el.id);
   });
+  $('draft-cancel').addEventListener('click', cancelDraft);
 
   $('mode-edit').addEventListener('click', () => setMode('edit'));
   $('mode-preview').addEventListener('click', () => setMode('preview'));
@@ -1989,7 +2562,20 @@ function bindEvents() {
 
   $('prev-btn').addEventListener('click', () => step(-1));
   $('next-btn').addEventListener('click', () => step(1));
-  $('klar-btn').addEventListener('click', toggleKlar);
+
+  // Opplæringen: lukkes med krysset, «Kom i gang» eller Esc
+  $('intro-close').addEventListener('click', () => $('intro').close());
+  $('intro-ok').addEventListener('click', () => $('intro').close());
+  $('intro').addEventListener('close', () => {
+    try { localStorage.setItem(INTRO_KEY, '1'); } catch (err) { /* lagring kan være blokkert */ }
+  });
+}
+
+// Opplæringen vises bare første gang (til den er lukket)
+function showIntro() {
+  let sett = false;
+  try { sett = localStorage.getItem(INTRO_KEY) === '1'; } catch (err) { /* lagring kan være blokkert */ }
+  if (!sett && $('intro').showModal) $('intro').showModal();
 }
 
 
@@ -2002,6 +2588,9 @@ function init() {
   });
   bindEvents();
   render();
+  startHilsenKlokke();
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) oppdaterHilsen(); });
+  showIntro();
 }
 
 init();
