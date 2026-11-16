@@ -310,7 +310,11 @@ button:disabled { cursor: not-allowed; }
 .progress-card__label { font-size: 15px; font-weight: 600; }
 .progress-card__value { font-size: 20px; font-weight: 700; }
 
-.tasks { display: flex; flex-wrap: wrap; gap: 16px; }
+.tasks {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(260px, 100%), 1fr));
+  gap: 16px;
+}
 
 .task {
   flex: 1 1 260px;
@@ -359,8 +363,29 @@ button:disabled { cursor: not-allowed; }
 
 /* Hele oppgavekortet kan klikkes */
 .task { cursor: pointer; }
-.task:not(.is-done):not(.task--auto):hover { border-color: var(--linje-sterk); }
+.task:not(.is-done):not(.task--auto):not(.task--legg-til):hover { border-color: var(--linje-sterk); }
 .task--auto { cursor: default; }
+
+/* «Legg til gjøremål»: samme kort, med pluss i sirkelen og stiplet kant */
+.task--legg-til { border-style: dashed; border-color: var(--linje-sterk); }
+.task--legg-til:hover,
+.task--legg-til.is-skriver { border-style: solid; border-color: var(--tv2-aksent); }
+.task--legg-til.is-skriver { cursor: default; }
+.task--legg-til .check__ring { color: var(--tv2-mork); }
+.task__input {
+  width: 100%;
+  min-height: 44px;
+  margin-top: 2px;
+  padding: 0 12px;
+  border: 1px solid var(--linje-sterk);
+  border-radius: var(--radius-s);
+  background: #FFFFFF;
+  color: var(--tv2-mork);
+  font-size: 15px;
+}
+.task__actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+.task__actions .btn-outline { margin-top: 0; }
+.task__legg-til { min-height: 44px; padding: 0 18px; font-size: 14px; }
 
 /* «Lese script» og «Gå gjennom kjøreplan»: sirkel uten kantlinje som fylles
    etter hvert som bolkene hukes av (--andel settes fra script.js) */
