@@ -30,7 +30,8 @@ Ren JavaScript uten rammeverk. Hold det slik.
   `data-grip` (håndtak for å flytte), `data-bolk`, `data-klar` (sjekkboksen på en bolk),
   `data-script-bolk`, `data-script-klar` (sjekkboksen på en bolk i scriptet),
   `data-goto` (grafikkpunkt i scriptet), `data-task-card` (hele oppgavekortet),
-  `data-task` (avkrysningen), `data-go`,
+  `data-task` (avkrysningen), `data-legg-til-task` og `data-slett-task` (egne gjøremål),
+  `data-go`,
   `data-add` og `data-serie` (bilde i en bildeserie). `FOCUS_ATTRS` gir fokus tilbake etter en
   ny tegning.
 - Unntak: `updateField()` tegner bare elementlisten og preview på nytt, slik at
@@ -67,9 +68,13 @@ Hovedmenyen: Dagens oppgaver · Script · Spilleliste.
 4. **Spilleliste, arbeidsflate:** bolkmeny med sjekkbokser, VIZ-oversikt,
    elementliste, elementpalett og preview/rediger-panel.
 
-- **Opplæring:** første gang siden åpnes, vises en dialog om hvordan man navigerer.
-  Når den lukkes (kryss, «Kom i gang» eller Esc), lagres det i `localStorage`
-  (`INTRO_KEY`), og den vises ikke igjen.
+- **Opplæring:** hver gang siden åpnes, vises en dialog om hvordan man navigerer. Den
+  lukkes med kryss, «Kom i gang» eller Esc. Ingenting lagres, så den kommer igjen
+  neste gang siden lastes.
+- **Legg til gjøremål:** siste kort i oppgavene på startsiden. Klikk åpner et tekstfelt
+  i kortet (Enter eller «Legg til», Esc eller «Avbryt»). Hvert nytt gjøremål blir et eget
+  kort med avkrysning og «Slett», og teller med i fremdriften. Egne gjøremål ligger i
+  `state.egneTasks` og lagres ikke når siden lastes på nytt.
 
 - **Bolkene nummereres 0–7** overalt. Bolk 0 er åpningen. Nummeret lages bare i
   `bolkNavn()`.
@@ -114,7 +119,8 @@ Hovedmenyen: Dagens oppgaver · Script · Spilleliste.
 - **Bolker:** hver bolk har en rund sjekkboks til høyre inni bolk-boksen, både i
   spillelisten (`bolk.klar`) og på Script-siden (`state.scriptKlar`). Begge tegnes av
   `bolkItem()`.
-- **Fremdrift** regnes som seks like deler: fire oppgaver som hukes av for hånd, og to
+- **Fremdrift** regnes som like deler per oppgave (seks faste, pluss egne gjøremål):
+  de manuelle hukes av for hånd, og to
   som fylles opp bolk for bolk: «Lese script» (sjekkboksene på Script-siden) og «Gå
   gjennom kjøreplan» (sjekkboksene i spillelisten). De to har ingen avkrysning, men en
   sirkel uten kantlinje som fylles (2 av 8 bolker = en firedel). Ingen bolker klare:

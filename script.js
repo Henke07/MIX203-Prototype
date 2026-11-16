@@ -588,8 +588,6 @@ const DAGENS_INFO = {
   ],
 };
 
-// Nøkkelen i localStorage som husker at opplæringen er lukket
-const INTRO_KEY = 'converge-intro-lukket';
 
 
 /* ----------------------------------------------------------
@@ -605,6 +603,10 @@ const state = {
   fetchedAt: null,
   doneTasks: { supere: false, fotokonk: false, produsent: false, test: false },
   blockedTask: null,      // oppgave som ikke kan hukes av ennå (viser en melding)
+  egneTasks: [],          // gjøremål brukeren har lagt til selv: { key, title, egen: true }
+  nyTask: null,           // teksten i «Legg til gjøremål» mens kortet er åpent, ellers null
+  nyTaskFeil: false,      // vis «Skriv inn et gjøremål» når man prøver å legge til et tomt
+  nextTaskId: 1,          // teller for egne gjøremål
   bolker: lagKjoreplan(),
   activeBolk: 0,          // indeks i state.bolker
   selectedId: null,       // id på elementet som er åpent i preview
@@ -788,16 +790,23 @@ function serieIndex(el) {
   return clamp(state.serieIndex, 0, Math.max(el.bilder.length - 1, 0));
 }
 
-// Fremdrift: seks like deler. Fire oppgaver hukes av manuelt. «Lese script» og
-// «Gå gjennom kjøreplan» fylles opp bolk for bolk (Script-siden og spillelisten).
+// Alle oppgavene på startsiden: de faste og gjøremålene brukeren har lagt til
+function alleTasks() {
+  return [...TASKS, ...state.egneTasks];
+}
+
+// Fremdrift: like deler per oppgave. De faste manuelle og egne gjøremål hukes av
+// for hånd. «Lese script» og «Gå gjennom kjøreplan» fylles opp bolk for bolk
+// (Script-siden og spillelisten).
 function progress() {
   const total = state.bolker.length;
   const klar = state.bolker.filter((b) => b.klar).length;
   const lest = state.scriptKlar.filter(Boolean).length;
   const manual = Object.values(state.doneTasks).filter(Boolean).length;
-  const pct = Math.round(((manual + klar / total + lest / total) / TASKS.length) * 100);
+  const antall = alleTasks().length;
+  const pct = Math.round(((manual + klar / total + lest / total) / antall) * 100);
   const tasksDone = manual + (klar === total ? 1 : 0) + (lest === total ? 1 : 0);
-  return { pct, klar, lest, total, tasksDone, auto: { kjoreplan: klar, script: lest } };
+  return { pct, klar, lest, total, antall, tasksDone, auto: { kjoreplan: klar, script: lest } };
 }
 
 function elTitle(el) {
@@ -821,7 +830,7 @@ function elLabel(el) {
 // Når innerHTML byttes ut, mister knappen fokus. Disse to
 // funksjonene husker hvilken knapp som hadde fokus og gir det tilbake,
 // slik at tastaturbrukere ikke mister plassen sin.
-const FOCUS_ATTRS = ['data-id', 'data-push', 'data-viz', 'data-unviz', 'data-grip', 'data-push-view',
+const FOCUS_ATTRS = ['data-id', 'data-push', 'data-viz', 'data-unviz', 'data-grip', 'data-push-view', 'data-slett-task',
   'data-bilde-viz', 'data-bilde-grip', 'data-bolk', 'data-klar',
   'data-script-bolk', 'data-script-klar', 'data-goto', 'data-task', 'data-go', 'data-add', 'data-serie'];
 function rememberFocus() {
@@ -1217,12 +1226,13 @@ function renderStart() {
 
   const p = progress();
   $('progress-note').textContent =
-    `${p.tasksDone} av ${TASKS.length} oppgaver ferdig · ${p.lest} av ${p.total} bolker lest i scriptet · ${p.klar} av ${p.total} bolker klare i spillelisten`;
+    `${p.tasksDone} av ${p.antall} oppgaver ferdig · ${p.lest} av ${p.total} bolker lest i scriptet · ${p.klar} av ${p.total} bolker klare i spillelisten`;
   $('cta-note').textContent = state.fetched
     ? `${p.total} bolker · ${p.klar} klare`
     : 'Kjøreplanen er ikke hentet ennå';
 
-  $('task-list').innerHTML = TASKS.map((task) => taskCard(task, p)).join('');
+  // «Legg til gjøremål» ligger alltid sist
+  $('task-list').innerHTML = alleTasks().map((task) => taskCard(task, p)).join('') + nyTaskCard();
   $('dagens-info').innerHTML = dagensInfo();
 }
 
@@ -1259,6 +1269,10 @@ function taskCard(task, p) {
   let shortcut = '';
   if (task.auto === 'kjoreplan') shortcut = '<button type="button" class="btn-outline" data-go="list">Åpne spillelisten</button>';
   if (task.auto === 'script') shortcut = '<button type="button" class="btn-outline" data-go="script">Åpne script</button>';
+  if (task.egen) {
+    shortcut = `<button type="button" class="btn-outline" data-slett-task="${task.key}"
+      aria-label="Slett gjøremål: ${esc(task.title)}">Slett</button>`;
+  }
 
   return `
     <div class="card task${done ? ' is-done' : ''}${task.auto ? ' task--auto' : ''}" data-task-card="${task.key}">
@@ -1270,6 +1284,36 @@ function taskCard(task, p) {
       </div>
       ${check}
     </div>`;
+}
+
+// Kortet «Legg til gjøremål». Samme kort og sirkel som de andre oppgavene, men
+// med pluss i sirkelen. Klikk åpner et tekstfelt i kortet.
+function nyTaskCard() {
+  if (state.nyTask === null) {
+    return `
+      <div class="card task task--legg-til" data-legg-til-task>
+        <div class="task__text">
+          <span class="task__title">Legg til gjøremål</span>
+          <span class="muted">Skjer det noe uventet? Legg til et eget gjøremål for dagen.</span>
+        </div>
+        <button type="button" class="check" data-legg-til-task aria-label="Legg til gjøremål">
+          <span class="check__ring">${svgIcon(PLUS_PATH, 16, 2.5)}</span>
+        </button>
+      </div>`;
+  }
+  return `
+    <form class="card task task--legg-til is-skriver" id="ny-task-form" novalidate>
+      <div class="task__text">
+        <label class="task__title" for="ny-task-input">Legg til gjøremål</label>
+        <input class="task__input" id="ny-task-input" type="text" maxlength="80" autocomplete="off"
+          placeholder="Hva må gjøres?" value="${esc(state.nyTask)}"${state.nyTaskFeil ? ' aria-invalid="true" aria-describedby="ny-task-feil"' : ''}>
+        ${state.nyTaskFeil ? `<span class="task__warn" id="ny-task-feil">${svgIcon(WARN_PATH, 14, 2)} Skriv inn et gjøremål</span>` : ''}
+        <span class="task__actions">
+          <button type="submit" class="btn-primary task__legg-til">Legg til</button>
+          <button type="button" class="btn-outline" data-avbryt-task>Avbryt</button>
+        </span>
+      </div>
+    </form>`;
 }
 
 // En bolk i bolkmenyen: knappen som åpner bolken, og en rund sjekkboks til høyre.
@@ -1838,7 +1882,7 @@ function goTo(screen) {
 }
 
 function toggleTask(key) {
-  const task = TASKS.find((t) => t.key === key);
+  const task = alleTasks().find((t) => t.key === key);
   if (task.auto) {
     // Blir ferdig av seg selv når alle bolkene er huket av. Før det rister
     // sirkelen (eller meldingen, hvis ingen bolker er klare) og brukeren
@@ -1862,6 +1906,64 @@ function toggleTask(key) {
   }
   state.doneTasks[key] = !state.doneTasks[key];
   render();
+}
+
+/* ---- Egne gjøremål ---- */
+function focusNyTaskInput() {
+  const input = $('ny-task-input');
+  if (!input) return;
+  input.focus();
+  input.setSelectionRange(input.value.length, input.value.length);
+}
+
+// Åpner tekstfeltet i «Legg til gjøremål»
+function openNyTask() {
+  state.nyTask = '';
+  state.nyTaskFeil = false;
+  render();
+  focusNyTaskInput();
+}
+
+function cancelNyTask() {
+  state.nyTask = null;
+  state.nyTaskFeil = false;
+  render();
+  const btn = document.querySelector('button[data-legg-til-task]');
+  if (btn) btn.focus();
+}
+
+// Legger til gjøremålet som et eget kort foran «Legg til gjøremål»
+function addTask() {
+  const title = (state.nyTask || '').trim();
+  if (!title) {
+    state.nyTaskFeil = true;
+    render();
+    focusNyTaskInput();
+    return;
+  }
+  const key = `egen-${state.nextTaskId++}`;
+  state.egneTasks.push({ key, title, egen: true });
+  state.doneTasks[key] = false;
+  state.nyTask = null;
+  state.nyTaskFeil = false;
+  render();
+  const btn = document.querySelector('button[data-legg-til-task]');
+  if (btn) btn.focus();
+  $('start-status').textContent = `Gjøremålet «${title}» er lagt til.`;
+}
+
+// Sletter et gjøremål brukeren har lagt til selv
+function deleteTask(key) {
+  const index = state.egneTasks.findIndex((t) => t.key === key);
+  if (index === -1) return;
+  const [task] = state.egneTasks.splice(index, 1);
+  delete state.doneTasks[key];
+  render();
+  // Fokus til neste egne gjøremål, eller til «Legg til gjøremål»
+  const next = state.egneTasks[index] || state.egneTasks[index - 1];
+  const target = next ? document.querySelector(`[data-task="${next.key}"]`) : document.querySelector('button[data-legg-til-task]');
+  if (target) target.focus();
+  $('start-status').textContent = `Gjøremålet «${task.title}» er slettet.`;
 }
 
 // Melding i elementlisten. `undo` gir en «Angre»-knapp.
@@ -2392,8 +2494,46 @@ function bindEvents() {
       goTo(go.dataset.go);
       return;
     }
+    const slett = e.target.closest('[data-slett-task]');
+    if (slett) {
+      deleteTask(slett.dataset.slettTask);
+      return;
+    }
+    if (e.target.closest('[data-avbryt-task]')) {
+      cancelNyTask();
+      return;
+    }
+    // Hele «Legg til gjøremål»-kortet åpner tekstfeltet
+    if (e.target.closest('[data-legg-til-task]')) {
+      openNyTask();
+      return;
+    }
     const card = e.target.closest('[data-task-card]');
     if (card) toggleTask(card.dataset.taskCard);
+  });
+
+  // Tekstfeltet i «Legg til gjøremål». Teksten lagres mens man skriver,
+  // så den ikke forsvinner hvis siden tegnes på nytt.
+  $('task-list').addEventListener('input', (e) => {
+    if (e.target.id !== 'ny-task-input') return;
+    state.nyTask = e.target.value;
+    if (state.nyTaskFeil && e.target.value.trim()) {
+      state.nyTaskFeil = false;
+      const feil = $('ny-task-feil');
+      if (feil) feil.remove();
+      e.target.removeAttribute('aria-invalid');
+      e.target.removeAttribute('aria-describedby');
+    }
+  });
+  $('task-list').addEventListener('submit', (e) => {
+    e.preventDefault();
+    addTask();
+  });
+  $('task-list').addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && e.target.id === 'ny-task-input') {
+      e.preventDefault();
+      cancelNyTask();
+    }
   });
 
   $('script-menu').addEventListener('click', (e) => {
@@ -2566,16 +2706,12 @@ function bindEvents() {
   // Opplæringen: lukkes med krysset, «Kom i gang» eller Esc
   $('intro-close').addEventListener('click', () => $('intro').close());
   $('intro-ok').addEventListener('click', () => $('intro').close());
-  $('intro').addEventListener('close', () => {
-    try { localStorage.setItem(INTRO_KEY, '1'); } catch (err) { /* lagring kan være blokkert */ }
-  });
 }
 
-// Opplæringen vises bare første gang (til den er lukket)
+// Opplæringen vises hver gang siden åpnes. Den kan lukkes i løpet av besøket,
+// men ingenting lagres, så den kommer igjen neste gang siden lastes.
 function showIntro() {
-  let sett = false;
-  try { sett = localStorage.getItem(INTRO_KEY) === '1'; } catch (err) { /* lagring kan være blokkert */ }
-  if (!sett && $('intro').showModal) $('intro').showModal();
+  if ($('intro').showModal) $('intro').showModal();
 }
 
 
