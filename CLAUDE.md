@@ -26,7 +26,8 @@ Ren JavaScript uten rammeverk. Hold det slik.
   fanges med event delegation via `data-`-attributter: `data-id` (åpne element),
   `data-push` og `data-viz` (PUSH-menyen), `data-push-view` (bytter til og fra «Push ett
   bilde»), `data-bilde-viz` og `data-bilde-grip` (ett bilde i «Push ett bilde»),
-  `data-unviz` (VIZ-merket med kanalnummer, fjerner PUSH),
+  `data-unviz` (VIZ-merket med kanalnummer, fjerner PUSH), `data-slett-el` (krysset
+  som sletter et nytt element),
   `data-grip` (håndtak for å flytte), `data-bolk`, `data-klar` (sjekkboksen på en bolk),
   `data-script-bolk`, `data-script-klar` (sjekkboksen på en bolk i scriptet),
   `data-goto` (grafikkpunkt i scriptet), `data-task-card` (hele oppgavekortet),
@@ -80,8 +81,8 @@ Hovedmenyen: Dagens oppgaver · Script · Spilleliste.
   `bolkNavn()`.
 - **Ett klikk** på et element åpner det i preview. Med tastatur fungerer Enter.
 - **Nye elementer** (lagt til i etterkant, `isNew`) er merket «Ny» der typeikonet
-  ellers står. De slettes med «Slett element» i preview, som bare vises når et nytt
-  element er valgt. Sletting tar elementet av VIZ, og «Angre» legger det tilbake på
+  ellers står. De slettes direkte i elementlisten: når man holder over «Ny»-merket (eller
+  tabber til det), blir merket til et kryss (`data-slett-el`). Sletting tar elementet av VIZ, og «Angre» legger det tilbake på
   samme plass. Elementer fra kjøreplanen kan ikke slettes.
 - **Dra og slipp:** elementer som er lagt til i etterkant, kan dras (håndtaket rett til
   venstre for PUSH, eller selve raden) til en ny plass i bolken de ligger i, ikke til andre bolker. En lilla
@@ -96,6 +97,10 @@ Hovedmenyen: Dagens oppgaver · Script · Spilleliste.
   noe nytt pushes til samme kanal. Menyen brukes med piltaster, Home/End, Enter, Esc og
   Tab, og lukkes med klikk utenfor. Tilstanden ligger i `state.viz` som `{ id, bilde }`
   per kanal (`bilde` er null for hele elementet).
+- **Tøm skjerm:** en kanal i VIZ-oversikten som har noe på, er en knapp
+  (`data-viz-cell`). Klikk åpner en meny med «Tøm skjerm» (`data-tom`), som tar alt av
+  kanalen. Ledige kanaler kan ikke klikkes. Menyen lukkes med Esc, Tab eller klikk
+  utenfor. Tilstanden ligger i `state.vizMeny`.
 - **Push ett bilde:** bildeserier og fotokonkurransen har i tillegg «Push ett bilde» i
   PUSH-menyen. Det åpner en liste over bildene i serien (`state.pushView = 'bilder'`).
   Hvert bilde kan pushes til VIZ1–3 for seg (klikk igjen tar det av), og menyen blir
@@ -114,7 +119,8 @@ Hovedmenyen: Dagens oppgaver · Script · Spilleliste.
   legges til og fjernes, med egen kreditering per bilde.
 - **Fotokonkurranse** ligger i Bolk 2 og Bolk 7 (det er riktig med to). Alle bidragene
   i en bolk er samlet i ett element som blas i som en bildeserie. Bidragene kan bare
-  leses: ingen Rediger-modus, og typen ligger ikke i paletten. Ingen kobling til
+  leses: ingen Rediger-modus, og typen ligger ikke i paletten. Klikk på «Rediger» gir
+  en melding i preview om at fotokonkurransen ikke kan redigeres (`state.previewMsg`). Ingen kobling til
   Instagram.
 - **Bolker:** hver bolk har en rund sjekkboks til høyre inni bolk-boksen, både i
   spillelisten (`bolk.klar`) og på Script-siden (`state.scriptKlar`). Begge tegnes av
@@ -129,7 +135,7 @@ Hovedmenyen: Dagens oppgaver · Script · Spilleliste.
 
 ## Elementtyper (13, i fire grupper)
 
-- **Supere:** navnesuper (navn og tittel), infosuper (tema og 1–3 setninger, med
+- **Supre:** navnesuper (navn og tittel), infosuper (tema og 1–3 setninger, med
   setningsteller).
 - **Stolper:** infostolpe (kategori, tittel, beskrivelse, pris og produktbilde fra
   høyre eller nederst), oppskriftstolpe (GMN-kjøkkenet, rett, QR-kode),
@@ -154,7 +160,7 @@ Hovedmenyen: Dagens oppgaver · Script · Spilleliste.
 **Grafikken i preview** skal ligne God morgen Norge slik den ser ut på TV, ikke
 verktøyet. Den har egne farger i `:root` (`--gmn-*`): myke gradienter i lys blå,
 beige og fersken, korallrød og sennepsgul som aksent, mørk hashtag-pille.
-Supere, Stolper og Overlegg er hovedsakelig oransje og gule, som God morgen Norge.
+Supre, Stolper og Overlegg er hovedsakelig oransje og gule, som God morgen Norge.
 De ligger over et «kamerabilde» med soloppgang og åser i dis (`kamera()`). Bare
 navnesuperen har en personsilhuett i bildet (`kamera(true)`). Elementene har hvite
 flater, varme gule faner og korall som aksent. Blått er bare en liten detalj (toppen
