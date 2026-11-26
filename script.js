@@ -152,7 +152,7 @@ const TYPES = {
 
 // Elementpaletten er delt inn i grupper
 const GROUPS = [
-  { key: 'supere',   navn: 'Supere',   typer: ['navnesuper', 'infosuper'] },
+  { key: 'supre',   navn: 'Supre',   typer: ['navnesuper', 'infosuper'] },
   { key: 'stolper',  navn: 'Stolper',  typer: ['infostolpe', 'oppskrift', 'sendestolpe'] },
   { key: 'bilder',   navn: 'Bilder',   typer: ['stillbilde', 'bildeserie', 'faksimile'] },
   { key: 'overlegg', navn: 'Overlegg', typer: ['ticker', 'hashtag', 'fotokred', 'straks'] },
@@ -187,7 +187,7 @@ const GRIP_PATH = '<path d="M9 6h.01M15 6h.01M9 12h.01M15 12h.01M9 18h.01M15 18h
 const TASKS = [
   { key: 'script',    title: 'Lese script', auto: 'script' },
   { key: 'kjoreplan', title: 'Gå gjennom kjøreplan', auto: 'kjoreplan' },
-  { key: 'supere',    title: 'Klargjøre navnesuper for gjester' },
+  { key: 'supre',    title: 'Klargjøre navnesuper for gjester' },
   { key: 'fotokonk',  title: 'Sjekke bidrag i fotokonkurransen' },
   { key: 'produsent', title: 'Morgenmøte med produksjonen' },
   { key: 'test',      title: 'Prøvekjøre grafikk før sending' },
@@ -601,7 +601,7 @@ const state = {
   fetched: false,         // er kjøreplanen hentet?
   loading: false,         // holder vi på å hente?
   fetchedAt: null,
-  doneTasks: { supere: false, fotokonk: false, produsent: false, test: false },
+  doneTasks: { supre: false, fotokonk: false, produsent: false, test: false },
   blockedTask: null,      // oppgave som ikke kan hukes av ennå (viser en melding)
   egneTasks: [],          // gjøremål brukeren har lagt til selv: { key, title, egen: true }
   nyTask: null,           // teksten i «Legg til gjøremål» mens kortet er åpent, ellers null
@@ -619,6 +619,8 @@ const state = {
   viz: { 1: null, 2: null, 3: null },
   pushMenu: null,         // id på elementet som har PUSH-menyen åpen
   pushView: 'kanaler',    // 'kanaler' (VIZ1–3) eller 'bilder' («Push ett bilde»)
+  vizMeny: null,          // kanalen (1–3) i VIZ-oversikten som har «Tøm skjerm»-menyen åpen
+  previewMsg: null,       // melding i preview-panelet { id, tekst }, f.eks. når Rediger ikke går
   msg: '',                // siste melding i elementlisten (leses opp av skjermleser)
   undo: null,             // sist fjernede element { el, bolk, index }, for «Angre»
   nextId: 1,              // teller for nye elementer
@@ -830,7 +832,7 @@ function elLabel(el) {
 // Når innerHTML byttes ut, mister knappen fokus. Disse to
 // funksjonene husker hvilken knapp som hadde fokus og gir det tilbake,
 // slik at tastaturbrukere ikke mister plassen sin.
-const FOCUS_ATTRS = ['data-id', 'data-push', 'data-viz', 'data-unviz', 'data-grip', 'data-push-view', 'data-slett-task',
+const FOCUS_ATTRS = ['data-id', 'data-push', 'data-viz', 'data-unviz', 'data-grip', 'data-push-view', 'data-slett-task', 'data-slett-el', 'data-viz-cell', 'data-tom',
   'data-bilde-viz', 'data-bilde-grip', 'data-bolk', 'data-klar',
   'data-script-bolk', 'data-script-klar', 'data-goto', 'data-task', 'data-go', 'data-add', 'data-serie'];
 function rememberFocus() {
@@ -972,7 +974,7 @@ const GMN_G = '<svg class="g-logo" viewBox="0 0 100 100" aria-hidden="true" focu
 const TV2_LOGO = '<span class="g-tv2" aria-hidden="true"><span class="g-tv2__2">2</span><span class="g-tv2__sub">Direkte</span></span>';
 const IG_ICON = '<svg class="g-ig" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true" focusable="false"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.3" cy="6.7" r="1.2" fill="currentColor" stroke="none"/></svg>';
 
-// Kamerabilde (plassholder) bak supere, stolper og overlegg: soloppgang i gult
+// Kamerabilde (plassholder) bak supre, stolper og overlegg: soloppgang i gult
 // og oransje med åser i dis, som i God morgen Norge. TV 2-logoen står oppe til høyre.
 // Bare navnesuperen har en person i bildet (person = true).
 function kamera(person = false) {
@@ -1532,10 +1534,13 @@ function renderElementList() {
     const label = esc(elLabel(el));
     // Elementer som er lagt til i etterkant, er merket «Ny» i stedet for typeikonet
     // og kan dras til en ny plass i bolken (håndtaket står rett til venstre for PUSH).
-    // De slettes med «Slett element» i preview.
+    // De slettes med krysset som vises over «Ny» når man holder over raden.
     const ny = !!el.isNew;
     return `
       <div class="el${isSelected ? ' is-selected' : ''}${ny ? ' is-flyttbar' : ''}" data-row="${el.id}">
+        ${ny ? `
+        <button type="button" class="el__slett" data-slett-el="${el.id}" title="Slett element"
+          aria-label="Slett ${label}">${svgIcon(CROSS_PATH, 18, 2.6)}</button>` : ''}
         <button type="button" class="el__open" data-id="${el.id}"${isSelected ? ' aria-current="true"' : ''}>
           ${ny
             ? '<span class="type-icon type-icon--ny">Ny<span class="sr-only"> element</span></span>'
@@ -1659,10 +1664,33 @@ function renderViz() {
     const entry = state.viz[k];
     const found = entry ? findElement(entry.id) : null;
     const where = found && found.bolk !== state.activeBolk ? ` (${bolkNavn(found.bolk)})` : '';
+    if (!found) {
+      return `
+        <li class="viz-cell">
+          <span class="viz-cell__name">VIZ${k}</span>
+          <span class="viz-cell__el">Ledig</span>
+        </li>`;
+    }
+    // En kanal med noe på kan klikkes. Da åpnes en meny med «Tøm skjerm».
+    const open = state.vizMeny === k;
+    const hva = esc(vizLabel(entry)) + where;
     return `
-      <li class="viz-cell${found ? ' is-on' : ''}">
-        <span class="viz-cell__name">VIZ${k}</span>
-        <span class="viz-cell__el">${found ? esc(vizLabel(entry)) + where : 'Ledig'}</span>
+      <li class="viz-cell is-on">
+        <button type="button" class="viz-cell__btn" data-viz-cell="${k}" aria-haspopup="menu"
+          aria-expanded="${open}"${open ? ` aria-controls="viz-meny-${k}"` : ''}>
+          <span class="viz-cell__name">VIZ${k}</span>
+          <span class="viz-cell__el">${hva}</span>
+        </button>
+        ${open ? `
+        <div class="push__menu viz-cell__menu" id="viz-meny-${k}" role="menu" aria-label="VIZ${k}">
+          <button type="button" class="push__item" role="menuitem" data-tom="${k}">
+            <span class="push__check">${svgIcon(CROSS_PATH, 16, 2.5)}</span>
+            <span class="push__text">
+              <span class="push__name">Tøm skjerm</span>
+              <span class="push__info">Tar av ${hva}</span>
+            </span>
+          </button>
+        </div>` : ''}
       </li>`;
   }).join('');
   $('list-msg').textContent = state.msg;
@@ -1706,8 +1734,13 @@ function renderPreview() {
   const editing = state.mode === 'edit' && !!sel && !lesbar;
 
   $('preview-title').textContent = previewTitle(sel);
-  $('mode-edit').disabled = !sel || lesbar;
+  // Rediger er ikke deaktivert for fotokonkurransen, slik at et klikk kan gi en melding
+  $('mode-edit').disabled = !sel;
+  $('mode-edit').setAttribute('aria-disabled', lesbar);
   $('mode-edit').title = lesbar ? 'Fotokonkurransen kan ikke redigeres' : '';
+  const melding = sel && state.previewMsg && state.previewMsg.id === sel.el.id ? state.previewMsg.tekst : '';
+  $('preview-msg').textContent = melding;
+  $('preview-msg').hidden = !melding;
   $('mode-preview').disabled = !sel;
   $('mode-edit').setAttribute('aria-pressed', editing);
   $('mode-preview').setAttribute('aria-pressed', !editing);
@@ -1730,8 +1763,6 @@ function renderPreview() {
   // «Legg element til spilleliste» i stedet for pilene.
   $('stepper').hidden = !!sel.draft;
   $('draft-bar').hidden = !sel.draft;
-  // «Slett element» bare for elementer som er lagt til i etterkant
-  $('delete-row').hidden = !!sel.draft || !sel.el.isNew;
   if (sel.draft) {
     const etter = state.selectedId ? activeBolk().els.find((e) => e.id === state.selectedId) : null;
     $('draft-note').textContent = etter
@@ -2105,7 +2136,7 @@ function cancelDraft() {
   if (state.selectedId) focusElementRow(state.selectedId);
 }
 
-// Sletter et nytt element fra bolken («Slett element» i preview).
+// Sletter et nytt element fra bolken (krysset over «Ny» i elementlisten).
 // Ligger det på en VIZ-kanal, tas det av.
 function removeElement(id) {
   const els = activeBolk().els;
@@ -2126,7 +2157,7 @@ function removeElement(id) {
     + (kanal ? ` Det ble også tatt av VIZ${kanal}.` : ''), { el, bolk: state.activeBolk, index });
   render();
 
-  // Slett-knappen forsvinner, så fokus går til «Angre»
+  // Raden forsvinner, så fokus går til «Angre»
   $('undo-btn').focus();
 }
 
@@ -2302,8 +2333,50 @@ function updateField(path, value) {
 }
 
 function setMode(mode) {
+  const sel = selected();
+  // Fotokonkurransen kan bare leses. Da forklarer vi hvorfor i stedet for å bytte modus.
+  if (mode === 'edit' && sel && TYPES[sel.el.type].lesbar) {
+    state.previewMsg = {
+      id: sel.el.id,
+      tekst: 'Det er ikke mulig å redigere fotokonkurransen. Bidragene kommer fra seerne og kan bare leses.',
+    };
+    render();
+    return;
+  }
+  state.previewMsg = null;
   state.mode = mode;
   render();
+}
+
+/* ---- «Tøm skjerm» i VIZ-oversikten ---- */
+function openVizMeny(kanal) {
+  state.pushMenu = null;
+  state.pushView = 'kanaler';
+  state.vizMeny = state.vizMeny === kanal ? null : kanal;
+  render();
+  if (state.vizMeny) document.querySelector(`[data-tom="${kanal}"]`).focus();
+}
+
+function closeVizMeny(returnFocus) {
+  const kanal = state.vizMeny;
+  if (!kanal) return;
+  state.vizMeny = null;
+  render();
+  if (returnFocus) document.querySelector(`[data-viz-cell="${kanal}"]`).focus();
+}
+
+// Tar alt av kanalen. Kanalen blir «Ledig», så fokus går til meldingen med «Angre»-plassen.
+function tomSkjerm(kanal) {
+  const entry = state.viz[kanal];
+  state.vizMeny = null;
+  if (!entry) { render(); return; }
+  const label = vizLabel(entry);
+  state.viz[kanal] = null;
+  setMsg(`VIZ${kanal} er tømt. ${label} er tatt av.`);
+  render();
+  // Knappen forsvinner når kanalen er ledig. Fokus går til neste kanal med noe på, ellers PUSH på raden.
+  const neste = document.querySelector('[data-viz-cell]') || document.querySelector(`[data-push="${entry.id}"]`);
+  if (neste) neste.focus();
 }
 
 // Sjekkboksen på en bolk i spillelisten. Styrer «Gå gjennom kjøreplan».
@@ -2335,6 +2408,7 @@ function focusMenu(where) {
 function openPushMenu(id, where) {
   state.pushMenu = id;
   state.pushView = 'kanaler';
+  state.vizMeny = null;
   render();
   focusMenu(where);
 }
@@ -2598,6 +2672,11 @@ function bindEvents() {
       unpush(Number(unviz.dataset.unviz));
       return;
     }
+    const slettEl = e.target.closest('[data-slett-el]');
+    if (slettEl) {
+      removeElement(slettEl.dataset.slettEl);
+      return;
+    }
     // Ett klikk (eller Enter/mellomrom) åpner elementet
     const btn = e.target.closest('[data-id]');
     if (btn) openElement(btn.dataset.id);
@@ -2656,9 +2735,29 @@ function bindEvents() {
       e.preventDefault();
       closePushMenu(true);
     }
+    if (e.key === 'Escape' && state.vizMeny) {
+      e.preventDefault();
+      closeVizMeny(true);
+    }
   });
   document.addEventListener('click', (e) => {
     if (state.pushMenu && !e.target.closest('.push')) closePushMenu(false);
+    if (state.vizMeny && !e.target.closest('.viz-cell')) closeVizMeny(false);
+  });
+
+  // VIZ-oversikten: klikk på en kanal åpner «Tøm skjerm»
+  $('viz-strip').addEventListener('click', (e) => {
+    const tom = e.target.closest('[data-tom]');
+    if (tom) {
+      tomSkjerm(Number(tom.dataset.tom));
+      return;
+    }
+    const cell = e.target.closest('[data-viz-cell]');
+    if (cell) openVizMeny(Number(cell.dataset.vizCell));
+  });
+  // Tab ut av menyen lukker den
+  $('viz-strip').addEventListener('keydown', (e) => {
+    if (e.key === 'Tab' && e.target.closest('[data-tom]')) closeVizMeny(true);
   });
 
   $('palette').addEventListener('click', (e) => {
@@ -2666,10 +2765,6 @@ function bindEvents() {
     if (btn && !btn.disabled) newDraft(btn.dataset.add);
   });
   $('draft-add').addEventListener('click', addDraft);
-  $('delete-btn').addEventListener('click', () => {
-    const sel = selected();
-    if (sel && !sel.draft && sel.el.isNew) removeElement(sel.el.id);
-  });
   $('draft-cancel').addEventListener('click', cancelDraft);
 
   $('mode-edit').addEventListener('click', () => setMode('edit'));

@@ -94,13 +94,13 @@
   --gmn-pille:    rgba(33, 20, 40, 0.92);     /* hashtag-pillen i Bilder */
   --gmn-play:     #3437E8;  /* «TV 2 Play»-merkelappen */
 
-  /* Supere, Stolper og Overlegg: hovedsakelig oransje og gult, som God morgen
+  /* Supre, Stolper og Overlegg: hovedsakelig oransje og gult, som God morgen
      Norge. Blått bare som en liten detalj (toppen av himmelen, hashtag-pillen og
      kanalfeltet på Straks-plakaten). Ingen brunt. */
   --gmn-blekk:    #231C26;  /* tekst */
   --gmn-skifer:   #6A6170;  /* sekundærtekst */
   --gmn-marine:   #1F2A44;  /* den lille blå detaljen: hashtag-pillen og kanalfeltet */
-  --gmn-hvit:     rgba(255, 255, 255, 0.95);  /* supere, stolper og ticker */
+  --gmn-hvit:     rgba(255, 255, 255, 0.95);  /* supre, stolper og ticker */
   --gmn-krem-gul: #FFF3E0;  /* lyse felt i stolpene */
   --gmn-solgul:   #F6D77A;
   --gmn-varm:     linear-gradient(105deg, #F7DA7C 0%, #F5C39A 100%);  /* faner og toppfelt */
@@ -900,6 +900,32 @@ button:disabled { cursor: not-allowed; }
   letter-spacing: 0.04em;
 }
 
+/* Kryss over «Ny» som sletter elementet. Ligger usynlig oppå merket og vises
+   når man holder over selve merket eller tabber til krysset.
+   44 × 44 px treffflate, sentrert over merket. */
+.el__slett {
+  position: absolute;
+  z-index: 1;
+  left: 8px;
+  top: 50%;
+  width: 44px;
+  height: 44px;
+  margin-top: -22px;
+  padding: 0;
+  border: 0;
+  border-radius: 12px;
+  background: var(--tv2-aksent);
+  color: var(--tv2-lys);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+}
+.el__slett:hover,
+.el__slett:focus-visible { opacity: 1; }
+.el__slett:hover { background: var(--aksent-hover); }
+.el.is-dragging .el__slett { opacity: 0; pointer-events: none; }
+
 /* Dra og slipp: håndtak rett til venstre for PUSH på elementer som er lagt til i etterkant */
 .element-list { position: relative; }
 .el__grip {
@@ -1170,6 +1196,27 @@ button:disabled { cursor: not-allowed; }
 .viz-cell.is-on .viz-cell__name { color: var(--tv2-aksent); }
 .viz-cell__el { font-size: 12px; color: var(--tekst-dempet-lys); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .viz-cell.is-on .viz-cell__el { color: var(--tv2-mork); font-weight: 600; }
+/* En kanal med noe på er en knapp som åpner «Tøm skjerm» */
+.viz-cell.is-on { position: relative; padding: 0; }
+.viz-cell__btn {
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: var(--radius-s);
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 1px;
+}
+.viz-cell__btn:hover { background: var(--flate-lys); }
+.viz-cell__btn[aria-expanded="true"] { background: var(--flate-lys); }
+.viz-cell__menu { top: calc(100% + 4px); left: 0; right: auto; width: min(260px, calc(100vw - 32px)); }
+.viz-cell:last-child .viz-cell__menu { left: auto; right: 0; }
 /* Siste melding i elementlisten, med «Angre» når et element er fjernet */
 .list-msg { min-height: 17px; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; }
 .list-msg__text { margin: 0; font-size: 13px; font-weight: 600; }
@@ -1250,7 +1297,20 @@ button:disabled { cursor: not-allowed; }
   font-weight: 600;
 }
 .mode-switch__btn[aria-pressed="true"] { background: var(--tv2-mork); color: var(--tv2-lys); }
-.mode-switch__btn:disabled { opacity: 0.5; }
+.mode-switch__btn:disabled,
+.mode-switch__btn[aria-disabled="true"] { opacity: 0.5; }
+
+/* Melding i preview, f.eks. «Det er ikke mulig å redigere fotokonkurransen» */
+.preview-msg {
+  margin: 0;
+  padding: 10px 14px;
+  border-left: 4px solid var(--tv2-aksent);
+  border-radius: var(--radius-s);
+  background: var(--flate-lys);
+  color: var(--tv2-mork);
+  font-size: 14px;
+  font-weight: 600;
+}
 
 /* Preview-panel */
 .preview-empty {
@@ -1427,8 +1487,6 @@ button:disabled { cursor: not-allowed; }
 .round-btn:disabled { opacity: 0.45; }
 
 /* «Slett element» for elementer som er lagt til i etterkant */
-.delete-row { display: flex; justify-content: flex-end; }
-.delete-row .btn-slett { margin-top: 0; display: inline-flex; align-items: center; gap: 8px; }
 
 /* Nytt element fra paletten, før det er lagt inn i spillelisten */
 .draft-bar {
@@ -1497,7 +1555,7 @@ button:disabled { cursor: not-allowed; }
     linear-gradient(165deg, #CFDAE8 0%, #EEF2F6 50%, #DCE4EE 100%);
 }
 
-/* Kamerabilde (plassholder) bak supere, stolper og overlegg: soloppgang i gult
+/* Kamerabilde (plassholder) bak supre, stolper og overlegg: soloppgang i gult
    og oransje med sol, store myke sirkler og åser i dis. Litt blått helt øverst. */
 .g-kamera {
   position: absolute;
